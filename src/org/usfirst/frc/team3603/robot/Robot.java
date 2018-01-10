@@ -1,85 +1,66 @@
-/*----------------------------------------------------------------------------*/
-/* Copyright (c) 2017-2018 FIRST. All Rights Reserved.                        */
-/* Open Source Software - may be modified and shared by FRC teams. The code   */
-/* must be accompanied by the FIRST BSD license file in the root directory of */
-/* the project.                                                               */
-/*----------------------------------------------------------------------------*/
-
 package org.usfirst.frc.team3603.robot;
 
+import com.ctre.phoenix.motorcontrol.can.WPI_TalonSRX;
+
+import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj.IterativeRobot;
-import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import edu.wpi.first.wpilibj.Joystick;
+import edu.wpi.first.wpilibj.SpeedControllerGroup;
+import edu.wpi.first.wpilibj.drive.DifferentialDrive;
 
-/**
- * The VM is configured to automatically run this class, and to call the
- * functions corresponding to each mode, as described in the IterativeRobot
- * documentation. If you change the name of this class or the package after
- * creating this project, you must also update the build.properties file in the
- * project.
- */
 public class Robot extends IterativeRobot {
-	private static final String kDefaultAuto = "Default";
-	private static final String kCustomAuto = "My Auto";
-	private String m_autoSelected;
-	private SendableChooser<String> m_chooser = new SendableChooser<>();
-
-	/**
-	 * This function is run when the robot is first started up and should be
-	 * used for any initialization code.
-	 */
+	
+	//All of these are individual speed controllers
+	WPI_TalonSRX leftFront = new WPI_TalonSRX(1);
+	WPI_TalonSRX leftMiddle = new WPI_TalonSRX(2);
+	WPI_TalonSRX leftBack = new WPI_TalonSRX(3);
+	WPI_TalonSRX rightFront = new WPI_TalonSRX(4);
+	WPI_TalonSRX rightMiddle = new WPI_TalonSRX(5);
+	WPI_TalonSRX rightBack = new WPI_TalonSRX(6);
+	
+	//This groups the speed controllers into left and right
+	SpeedControllerGroup left = new SpeedControllerGroup(leftFront, leftMiddle, leftBack);
+	SpeedControllerGroup right = new SpeedControllerGroup(rightFront, rightMiddle, rightBack);
+	
+	//This groups them into the new type of RobotDrive
+	DifferentialDrive mainDrive = new DifferentialDrive(left, right);
+	
+	Joystick joy1 = new Joystick(0); //Large twist-axis joystick
+	
+	DriverStation matchInfo = DriverStation.getInstance(); //Field data object
+	
+	String sides; //A string to store the switch and scale colors
+	Alliance alliance; //An Alliance object to store the alliance
+	int position; //An integer to store the starting position
+	
 	@Override
 	public void robotInit() {
-		m_chooser.addDefault("Default Auto", kDefaultAuto);
-		m_chooser.addObject("My Auto", kCustomAuto);
-		SmartDashboard.putData("Auto choices", m_chooser);
+		left.setInverted(true); //Invert the left speed controllers
+		mainDrive.setSafetyEnabled(false); //Disable safety
 	}
-
-	/**
-	 * This autonomous (along with the chooser code above) shows how to select
-	 * between different autonomous modes using the dashboard. The sendable
-	 * chooser code works with the Java SmartDashboard. If you prefer the
-	 * LabVIEW Dashboard, remove all of the chooser code and uncomment the
-	 * getString line to get the auto name from the text box below the Gyro
-	 *
-	 * <p>You can add additional auto modes by adding additional comparisons to
-	 * the switch structure below with additional strings. If using the
-	 * SendableChooser make sure to add them to the chooser code above as well.
-	 */
 	@Override
 	public void autonomousInit() {
-		m_autoSelected = m_chooser.getSelected();
-		// autoSelected = SmartDashboard.getString("Auto Selector",
-		// defaultAuto);
-		System.out.println("Auto selected: " + m_autoSelected);
+		sides = matchInfo.getGameSpecificMessage(); //Get the switch and scale colors
+		position = matchInfo.getLocation(); //Get the robot's position
+		alliance = matchInfo.getAlliance(); //Get the alliance color
 	}
-
-	/**
-	 * This function is called periodically during autonomous.
-	 */
 	@Override
 	public void autonomousPeriodic() {
-		switch (m_autoSelected) {
-			case kCustomAuto:
-				// Put custom auto code here
-				break;
-			case kDefaultAuto:
-			default:
-				// Put default auto code here
-				break;
-		}
+		
 	}
-
-	/**
-	 * This function is called periodically during operator control.
-	 */
 	@Override
 	public void teleopPeriodic() {
+		double y = Math.pow(joy1.getRawAxis(0), 3); //Double to store the joystick's y axis
+		double rot = Math.pow(joy1.getRawAxis(1), 3); //Double to store the joystick's x axis
+		if(Math.abs(y) >= 0.05 || Math.abs(rot) >= 0.05) { //Thresholding function
+			mainDrive.arcadeDrive(y, rot); //Arcade drive with the joystick's axis
+		}
+		read(); //Read from sensors and put them on the SmartDashboard
 	}
-
-	/**
-	 * This function is called periodically during test mode.
-	 */
+	
+	void read() {
+	}
 	@Override
 	public void testPeriodic() {
 	}
