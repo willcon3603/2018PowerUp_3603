@@ -7,7 +7,6 @@ import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.IterativeRobot;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.Servo;
-import edu.wpi.first.wpilibj.Spark;
 import edu.wpi.first.wpilibj.SpeedControllerGroup;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
@@ -20,7 +19,6 @@ public class Robot extends IterativeRobot {
 	
 	//All of these are individual speed controllers
 	WPI_TalonSRX leftFront = new WPI_TalonSRX(1);
-	Spark yo = new Spark(0);
 	WPI_TalonSRX leftMiddle = new WPI_TalonSRX(2);
 	WPI_TalonSRX leftBack = new WPI_TalonSRX(3);
 	WPI_TalonSRX rightFront = new WPI_TalonSRX(4);
