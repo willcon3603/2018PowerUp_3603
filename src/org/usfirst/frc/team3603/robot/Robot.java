@@ -2,6 +2,7 @@ package org.usfirst.frc.team3603.robot;
 
 import com.ctre.phoenix.motorcontrol.can.WPI_TalonSRX;
 
+import edu.wpi.first.wpilibj.ADXRS450_Gyro;
 import edu.wpi.first.wpilibj.DoubleSolenoid;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.IterativeRobot;
@@ -31,16 +32,17 @@ public class Robot extends IterativeRobot {
 	DifferentialDrive mainDrive = new DifferentialDrive(left, right);
 	
 	
-	WPI_TalonSRX leftHolder = new WPI_TalonSRX(1);
-	WPI_TalonSRX rightHolder = new WPI_TalonSRX(2);
+	WPI_TalonSRX leftHolder = new WPI_TalonSRX(1);//Leftholder speedcontroller
+	WPI_TalonSRX rightHolder = new WPI_TalonSRX(2);//Rightholder speedcontroller
 	Joystick joy1 = new Joystick(0); //Large twist-axis joystick
 	Joystick joy2 = new Joystick(1);
 	Ultrasonic ultrasonic = new Ultrasonic(0);
+	ADXRS450_Gyro gyro = new ADXRS450_Gyro();
 	
-	Servo leftRamp = new Servo(0);
-	Servo rightRamp = new Servo(1);
-	DoubleSolenoid pusher = new DoubleSolenoid(0, 1);
-	WPI_TalonSRX lift = new WPI_TalonSRX(7);
+	Servo leftRamp = new Servo(0);// Left ramp sevo
+	Servo rightRamp = new Servo(1);//Right ramp servo
+	DoubleSolenoid pusher = new DoubleSolenoid(0, 1);//Piston neumatics
+	WPI_TalonSRX lift = new WPI_TalonSRX(7); //lift speedcontroller
 	
 	DriverStation matchInfo = DriverStation.getInstance();
 	
@@ -50,6 +52,8 @@ public class Robot extends IterativeRobot {
 	char switchPos;
 	AutonType autonMode;
 	int step;
+	
+	double time = 0;
 	
 	@Override
 	public void robotInit() {
@@ -83,7 +87,7 @@ public class Robot extends IterativeRobot {
 		} else if(position == 3 && scalePos == 'R') {//If we can go for the right scale
 			autonMode = AutonType.rightScale;
 		} else if(position == 2) {//If we are in position two
-			autonMode = AutonType.middle;
+			autonMode = AutonType.straight;
 		} else {//If none of those are true
 			autonMode = AutonType.straight;
 		}
@@ -99,9 +103,6 @@ public class Robot extends IterativeRobot {
 			break;
 		case rightSwitch:
 			rightSwitch(); //Go to the right side of the switch
-			break;
-		case middle:
-			middle(); //Curve slightly to the right
 			break;
 		case leftScale:
 			leftScale(); //Go to the left side of the scale
@@ -123,20 +124,22 @@ public class Robot extends IterativeRobot {
 			leftRamp.set(1);
 			rightRamp.set(1);
 		}
-		if(joy1.getRawButton(1)) {
-			pusher.set(out);
-		} else {
-			pusher.set(in);
-		}
+		
 		if(Math.abs(joy2.getRawAxis(1)) >= 0.05) {
 			lift.set(joy2.getRawAxis(1));
 		}
-		if(joy2.getRawButton(1)) {
-			leftHolder.set(0.5);
+		if(joy2.getRawButton(1)) { //If button A is being pressed...
+			leftHolder.set(0.5); //Intake cube
 			rightHolder.set(-0.5);
-		} else if(joy2.getRawButton(3)) {
-			leftHolder.set(0.5);
+		} else if(joy2.getRawButton(3)) { //If button X is being pressed...
+			leftHolder.set(0.5); // Rotate cube
 			rightHolder.set(0.5);
+		} else if(joy2.getRawButton(4)) { //If button Y is being pressed...
+			leftHolder.set(-0.5);// Output cube
+			rightHolder.set(0.5);
+			pusher.set(out);
+		} else { 
+			pusher.set(in);//If nothing is being pressed pusher is held in
 		}
 	}
 	
@@ -149,7 +152,7 @@ public class Robot extends IterativeRobot {
 	}
 	
 	enum AutonType {
-		rightScale, leftScale, rightSwitch, leftSwitch, straight, middle
+		rightScale, leftScale, rightSwitch, leftSwitch, straight
 	}
 	
 	void straight() {
@@ -162,14 +165,164 @@ public class Robot extends IterativeRobot {
 	}
 	
 	void rightScale() {
+		switch(step) {
+		case 1:
+			if(ultrasonic.get() < 300) {
+				mainDrive.arcadeDrive(1, 0);
+			} else {
+				step = 2;
+			}
+			break;
+		case 2:
+			if(gyro.getAngle() > -90) {
+				mainDrive.arcadeDrive(0, -0.3);
+			} else {
+				step = 3;
+			}
+			break;
+		case 3:
+			if(ultrasonic.get() < 12) {
+				mainDrive.arcadeDrive(0.2, 0);
+				lift.set(0.5);
+			} else {
+				step = 4;
+				lift.set(0);
+				time = Timer.getMatchTime();
+			}
+			break;
+		case 4:
+			if(time - Timer.getMatchTime() <= 1.0) {
+				leftHolder.set (-1);
+				rightHolder.set(1);
+				pusher.set(out);
+			} else {
+				step = 5;
+				pusher.set(in);
+				leftHolder.set(0);
+				rightHolder.set(0);
+			}
+			break;
+		}
 	}
 	void leftScale() {
+		switch(step) {
+		case 1:
+			if(ultrasonic.get() < 300) {
+				mainDrive.arcadeDrive(1, 0);
+			} else {
+				step = 2;
+			}
+			break;
+		case 2:
+			if(gyro.getAngle() < 90) {
+				mainDrive.arcadeDrive(0, 0.3);
+			} else {
+				step = 3;
+			}
+			break;
+		case 3:
+			if(ultrasonic.get() < 12) {
+				mainDrive.arcadeDrive(0.2, 0);
+				lift.set(0.5);
+			} else {
+				step = 4;
+				lift.set(0);
+				time = Timer.getMatchTime();
+			}
+			break;
+		case 4:
+			if(time - Timer.getMatchTime() <= 1.0) {
+				leftHolder.set (-1);
+				rightHolder.set(1);
+				pusher.set(out);
+			} else {
+				step = 5;
+				pusher.set(in);
+				leftHolder.set(0);
+				rightHolder.set(0);
+			}
+			break;
+		}
 	}
 	void rightSwitch() {
+		switch(step) {
+		case 1:
+			if(ultrasonic.get() < 168) {
+				mainDrive.arcadeDrive(1, 0);
+			} else {
+				step = 2;
+			}
+			break;
+		case 2:
+			if(gyro.getAngle() > -90) {
+				mainDrive.arcadeDrive(0, -0.3);
+			} else {
+				step = 3;
+			}
+			break;
+		case 3:
+			if(ultrasonic.get() < 12) {
+				mainDrive.arcadeDrive(0.2, 0);
+				lift.set(0.5);
+			} else {
+				step = 4;
+				lift.set(0);
+				time = Timer.getMatchTime();
+			}
+			break;
+		case 4:
+			if(time - Timer.getMatchTime() <= 1.0) {
+				leftHolder.set (-1);
+				rightHolder.set(1);
+				pusher.set(out);
+			} else {
+				step = 5;
+				pusher.set(in);
+				leftHolder.set(0);
+				rightHolder.set(0);
+			}
+			break;
+		}
 	}
 	void leftSwitch() {
-	}
-	void middle() {
+		switch(step) {
+		case 1:
+			if(ultrasonic.get() < 168) {
+				mainDrive.arcadeDrive(1, 0);
+			} else {
+				step = 2;
+			}
+			break;
+		case 2:
+			if(gyro.getAngle() < 90) {
+				mainDrive.arcadeDrive(0, 0.3);
+			} else {
+				step = 3;
+			}
+			break;
+		case 3:
+			if(ultrasonic.get() < 12) {
+				mainDrive.arcadeDrive(0.2, 0);
+				lift.set(0.5);
+			} else {
+				step = 4;
+				lift.set(0);
+				time = Timer.getMatchTime();
+			}
+			break;
+		case 4:
+			if(time - Timer.getMatchTime() <= 1.0) {
+				leftHolder.set (-1);
+				rightHolder.set(1);
+				pusher.set(out);
+			} else {
+				step = 5;
+				pusher.set(in);
+				leftHolder.set(0);
+				rightHolder.set(0);
+			}
+			break;
+		}
 	}
 	void drive(double speed) {
 		mainDrive.arcadeDrive(speed, 0);
