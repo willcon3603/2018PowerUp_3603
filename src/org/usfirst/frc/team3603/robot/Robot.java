@@ -31,6 +31,8 @@ public class Robot extends IterativeRobot {
 	DifferentialDrive mainDrive = new DifferentialDrive(left, right);
 	
 	
+	WPI_TalonSRX leftHolder = new WPI_TalonSRX(1);
+	WPI_TalonSRX rightHolder = new WPI_TalonSRX(2);
 	Joystick joy1 = new Joystick(0); //Large twist-axis joystick
 	Joystick joy2 = new Joystick(1);
 	Ultrasonic ultrasonic = new Ultrasonic(0);
@@ -40,7 +42,7 @@ public class Robot extends IterativeRobot {
 	DoubleSolenoid pusher = new DoubleSolenoid(0, 1);
 	WPI_TalonSRX lift = new WPI_TalonSRX(7);
 	
-	DriverStation matchInfo = DriverStation.getInstance(); //Field data object
+	DriverStation matchInfo = DriverStation.getInstance();
 	
 	String sides; //A string to store the switch and scale colors
 	int position; //An integer to store the starting position
@@ -112,8 +114,8 @@ public class Robot extends IterativeRobot {
 	
 	@Override
 	public void teleopPeriodic() {
-		double y = Math.pow(joy1.getRawAxis(0), 3); //Double to store the joystick's y axis
-		double rot = Math.pow(joy1.getRawAxis(1), 3); //Double to store the joystick's x axis
+		double y = Math.pow(joy1.getRawAxis(1), 3); //Double to store the joystick's y axis
+		double rot = Math.pow(joy1.getRawAxis(2), 3); //Double to store the joystick's x axis
 		if(Math.abs(y) >= 0.05 || Math.abs(rot) >= 0.05) { //Thresholding function
 			mainDrive.arcadeDrive(y, rot); //Arcade drive with the joystick's axis
 		}
@@ -128,6 +130,13 @@ public class Robot extends IterativeRobot {
 		}
 		if(Math.abs(joy2.getRawAxis(1)) >= 0.05) {
 			lift.set(joy2.getRawAxis(1));
+		}
+		if(joy2.getRawButton(1)) {
+			leftHolder.set(0.5);
+			rightHolder.set(-0.5);
+		} else if(joy2.getRawButton(3)) {
+			leftHolder.set(0.5);
+			rightHolder.set(0.5);
 		}
 	}
 	
@@ -151,6 +160,7 @@ public class Robot extends IterativeRobot {
 			drive(0);
 		}
 	}
+	
 	void rightScale() {
 	}
 	void leftScale() {
