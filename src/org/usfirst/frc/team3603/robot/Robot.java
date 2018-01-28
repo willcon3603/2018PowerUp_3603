@@ -3,8 +3,10 @@ package org.usfirst.frc.team3603.robot;
 import com.ctre.phoenix.motorcontrol.can.WPI_TalonSRX;
 
 import edu.wpi.first.wpilibj.ADXRS450_Gyro;
+import edu.wpi.first.wpilibj.CounterBase.EncodingType;
 import edu.wpi.first.wpilibj.DoubleSolenoid;
 import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.Encoder;
 import edu.wpi.first.wpilibj.IterativeRobot;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.Servo;
@@ -35,14 +37,17 @@ public class Robot extends IterativeRobot {
 	WPI_TalonSRX leftHolder = new WPI_TalonSRX(1);//Leftholder speedcontroller
 	WPI_TalonSRX rightHolder = new WPI_TalonSRX(2);//Rightholder speedcontroller
 	Joystick joy1 = new Joystick(0); //Large twist-axis joystick
-	Joystick joy2 = new Joystick(1);
+	Joystick joy2 = new Joystick(1); //Xbox controller
 	Ultrasonic ultrasonic = new Ultrasonic(0);
 	ADXRS450_Gyro gyro = new ADXRS450_Gyro();
 	
-	Servo leftRamp = new Servo(0);// Left ramp sevo
-	Servo rightRamp = new Servo(1);//Right ramp servo
-	DoubleSolenoid pusher = new DoubleSolenoid(0, 1);//Piston neumatics
-	WPI_TalonSRX lift = new WPI_TalonSRX(7); //lift speedcontroller
+	Servo leftFork = new Servo(0);// Left ramp sevo
+	Servo rightFork = new Servo(1);//Right ramp servo
+	WPI_TalonSRX robotLift = new WPI_TalonSRX(7);
+	WPI_TalonSRX cubeLift = new WPI_TalonSRX(8); //lift speedcontroller
+	
+	Encoder liftEnc = new Encoder(0, 1, true, EncodingType.k2X);
+	Encoder driveEnc = new Encoder(2, 3, true, EncodingType.k2X);
 	
 	DriverStation matchInfo = DriverStation.getInstance();
 	
@@ -57,22 +62,13 @@ public class Robot extends IterativeRobot {
 	
 	@Override
 	public void robotInit() {
-		leftRamp.set(0);
-		rightRamp.set(0);
-		left.setInverted(true); //Invert the left speed controllers
+		leftFork.set(0);
+		rightFork.set(0);
 		mainDrive.setSafetyEnabled(false); //Disable safety
-		
-		Thread read = new Thread(() -> {
-			while(true) {
-				read();
-				Timer.delay(0.01);
-			}
-		});
-		read.start();
 	}
 	@Override
 	public void autonomousInit() {
-		step = 0;
+		step = 1;
 		sides = matchInfo.getGameSpecificMessage(); //Get the switch and scale colors
 		switchPos = sides.charAt(0);
 		scalePos = sides.charAt(1);
@@ -91,6 +87,9 @@ public class Robot extends IterativeRobot {
 		} else {//If none of those are true
 			autonMode = AutonType.straight;
 		}
+		
+		liftEnc.setDistancePerPulse(1);
+		driveEnc.setDistancePerPulse(1);
 	}
 	@Override
 	public void autonomousPeriodic() {
@@ -120,13 +119,17 @@ public class Robot extends IterativeRobot {
 		if(Math.abs(y) >= 0.05 || Math.abs(rot) >= 0.05) { //Thresholding function
 			mainDrive.arcadeDrive(y, rot); //Arcade drive with the joystick's axis
 		}
-		if(Timer.getMatchTime() <= 30 && joy1.getRawButton(2)) {
-			leftRamp.set(1);
-			rightRamp.set(1);
+		
+		if(Timer.getMatchTime() <= 30 && joy2.getRawButton(2)) {
+			leftFork.set(1);
+			rightFork.set(1);
+		}
+		if(Timer.getMatchTime() <= 30 && joy2.getRawAxis(3) >= 0.9) {
+			robotLift.set(joy2.getRawAxis(3));
 		}
 		
 		if(Math.abs(joy2.getRawAxis(1)) >= 0.05) {
-			lift.set(joy2.getRawAxis(1));
+			cubeLift.set(joy2.getRawAxis(1));
 		}
 		if(joy2.getRawButton(1)) { //If button A is being pressed...
 			leftHolder.set(0.5); //Intake cube
@@ -137,10 +140,8 @@ public class Robot extends IterativeRobot {
 		} else if(joy2.getRawButton(4)) { //If button Y is being pressed...
 			leftHolder.set(-0.5);// Output cube
 			rightHolder.set(0.5);
-			pusher.set(out);
-		} else { 
-			pusher.set(in);//If nothing is being pressed pusher is held in
 		}
+		read();
 	}
 	
 	void read() {
@@ -183,10 +184,10 @@ public class Robot extends IterativeRobot {
 		case 3:
 			if(ultrasonic.get() < 12) {
 				mainDrive.arcadeDrive(0.2, 0);
-				lift.set(0.5);
+				cubeLift.set(0.5);
 			} else {
 				step = 4;
-				lift.set(0);
+				cubeLift.set(0);
 				time = Timer.getMatchTime();
 			}
 			break;
@@ -194,10 +195,8 @@ public class Robot extends IterativeRobot {
 			if(time - Timer.getMatchTime() <= 1.0) {
 				leftHolder.set (-1);
 				rightHolder.set(1);
-				pusher.set(out);
 			} else {
 				step = 5;
-				pusher.set(in);
 				leftHolder.set(0);
 				rightHolder.set(0);
 			}
@@ -223,10 +222,10 @@ public class Robot extends IterativeRobot {
 		case 3:
 			if(ultrasonic.get() < 12) {
 				mainDrive.arcadeDrive(0.2, 0);
-				lift.set(0.5);
+				cubeLift.set(0.5);
 			} else {
 				step = 4;
-				lift.set(0);
+				cubeLift.set(0);
 				time = Timer.getMatchTime();
 			}
 			break;
@@ -234,10 +233,8 @@ public class Robot extends IterativeRobot {
 			if(time - Timer.getMatchTime() <= 1.0) {
 				leftHolder.set (-1);
 				rightHolder.set(1);
-				pusher.set(out);
 			} else {
 				step = 5;
-				pusher.set(in);
 				leftHolder.set(0);
 				rightHolder.set(0);
 			}
@@ -263,10 +260,10 @@ public class Robot extends IterativeRobot {
 		case 3:
 			if(ultrasonic.get() < 12) {
 				mainDrive.arcadeDrive(0.2, 0);
-				lift.set(0.5);
+				cubeLift.set(0.5);
 			} else {
 				step = 4;
-				lift.set(0);
+				cubeLift.set(0);
 				time = Timer.getMatchTime();
 			}
 			break;
@@ -274,10 +271,8 @@ public class Robot extends IterativeRobot {
 			if(time - Timer.getMatchTime() <= 1.0) {
 				leftHolder.set (-1);
 				rightHolder.set(1);
-				pusher.set(out);
 			} else {
 				step = 5;
-				pusher.set(in);
 				leftHolder.set(0);
 				rightHolder.set(0);
 			}
@@ -303,10 +298,10 @@ public class Robot extends IterativeRobot {
 		case 3:
 			if(ultrasonic.get() < 12) {
 				mainDrive.arcadeDrive(0.2, 0);
-				lift.set(0.5);
+				cubeLift.set(0.5);
 			} else {
 				step = 4;
-				lift.set(0);
+				cubeLift.set(0);
 				time = Timer.getMatchTime();
 			}
 			break;
@@ -314,10 +309,8 @@ public class Robot extends IterativeRobot {
 			if(time - Timer.getMatchTime() <= 1.0) {
 				leftHolder.set (-1);
 				rightHolder.set(1);
-				pusher.set(out);
 			} else {
 				step = 5;
-				pusher.set(in);
 				leftHolder.set(0);
 				rightHolder.set(0);
 			}
