@@ -33,21 +33,17 @@ public class Robot extends IterativeRobot {
 	//This groups them into the new type of RobotDrive
 	DifferentialDrive mainDrive = new DifferentialDrive(left, right);
 	
+	WPI_TalonSRX leftHolder = new WPI_TalonSRX(7);//Leftholder speedcontroller
+	WPI_TalonSRX rightHolder = new WPI_TalonSRX(8);//Rightholder speedcontroller
+	WPI_TalonSRX cubeLift = new WPI_TalonSRX(9); //lift speedcontroller
 	
-	WPI_TalonSRX leftHolder = new WPI_TalonSRX(1);//Leftholder speedcontroller
-	WPI_TalonSRX rightHolder = new WPI_TalonSRX(2);//Rightholder speedcontroller
 	Joystick joy1 = new Joystick(0); //Large twist-axis joystick
 	Joystick joy2 = new Joystick(1); //Xbox controller
-	Ultrasonic ultrasonic = new Ultrasonic(0);
 	ADXRS450_Gyro gyro = new ADXRS450_Gyro();
 	
-	Servo leftFork = new Servo(0);// Left ramp sevo
-	Servo rightFork = new Servo(1);//Right ramp servo
-	WPI_TalonSRX robotLift = new WPI_TalonSRX(7);
-	WPI_TalonSRX cubeLift = new WPI_TalonSRX(8); //lift speedcontroller
-	
-	Encoder liftEnc = new Encoder(0, 1, true, EncodingType.k2X);
-	Encoder driveEnc = new Encoder(2, 3, true, EncodingType.k2X);
+	MyEncoder liftEnc = new MyEncoder(cubeLift, false, 1.0);
+	Encoder driveEnc = new Encoder(0, 0, true, EncodingType.k2X);
+	double mult = 1.0;
 	
 	DriverStation matchInfo = DriverStation.getInstance();
 	
@@ -62,8 +58,6 @@ public class Robot extends IterativeRobot {
 	
 	@Override
 	public void robotInit() {
-		leftFork.set(0);
-		rightFork.set(0);
 		mainDrive.setSafetyEnabled(false); //Disable safety
 	}
 	@Override
@@ -88,7 +82,6 @@ public class Robot extends IterativeRobot {
 			autonMode = AutonType.straight;
 		}
 		
-		liftEnc.setDistancePerPulse(1);
 		driveEnc.setDistancePerPulse(1);
 	}
 	@Override
@@ -120,14 +113,6 @@ public class Robot extends IterativeRobot {
 			mainDrive.arcadeDrive(y, rot); //Arcade drive with the joystick's axis
 		}
 		
-		if(Timer.getMatchTime() <= 30 && joy2.getRawButton(2)) {
-			leftFork.set(1);
-			rightFork.set(1);
-		}
-		if(Timer.getMatchTime() <= 30 && joy2.getRawAxis(3) >= 0.9) {
-			robotLift.set(joy2.getRawAxis(3));
-		}
-		
 		if(Math.abs(joy2.getRawAxis(1)) >= 0.05) {
 			cubeLift.set(joy2.getRawAxis(1));
 		}
@@ -145,7 +130,7 @@ public class Robot extends IterativeRobot {
 	}
 	
 	void read() {
-		SmartDashboard.putNumber("Ultrasonic distance", ultrasonic.get());
+		SmartDashboard.putNumber("Drive distance", liftEnc.get());
 	}
 	
 	@Override
@@ -157,7 +142,7 @@ public class Robot extends IterativeRobot {
 	}
 	
 	void straight() {
-		double distance = ultrasonic.get();
+		double distance = liftEnc.get();
 		if(distance < 120) {
 			drive(0.75);
 		} else {
@@ -168,7 +153,7 @@ public class Robot extends IterativeRobot {
 	void rightScale() {
 		switch(step) {
 		case 1:
-			if(ultrasonic.get() < 300) {
+			if(liftEnc.get() < 300) {
 				mainDrive.arcadeDrive(1, 0);
 			} else {
 				step = 2;
@@ -182,7 +167,7 @@ public class Robot extends IterativeRobot {
 			}
 			break;
 		case 3:
-			if(ultrasonic.get() < 12) {
+			if(liftEnc.get() < 12) {
 				mainDrive.arcadeDrive(0.2, 0);
 				cubeLift.set(0.5);
 			} else {
@@ -206,7 +191,7 @@ public class Robot extends IterativeRobot {
 	void leftScale() {
 		switch(step) {
 		case 1:
-			if(ultrasonic.get() < 300) {
+			if(liftEnc.get() < 300) {
 				mainDrive.arcadeDrive(1, 0);
 			} else {
 				step = 2;
@@ -220,7 +205,7 @@ public class Robot extends IterativeRobot {
 			}
 			break;
 		case 3:
-			if(ultrasonic.get() < 12) {
+			if(liftEnc.get() < 12) {
 				mainDrive.arcadeDrive(0.2, 0);
 				cubeLift.set(0.5);
 			} else {
@@ -244,7 +229,7 @@ public class Robot extends IterativeRobot {
 	void rightSwitch() {
 		switch(step) {
 		case 1:
-			if(ultrasonic.get() < 168) {
+			if(liftEnc.get() < 168) {
 				mainDrive.arcadeDrive(1, 0);
 			} else {
 				step = 2;
@@ -258,7 +243,7 @@ public class Robot extends IterativeRobot {
 			}
 			break;
 		case 3:
-			if(ultrasonic.get() < 12) {
+			if(liftEnc.get() < 12) {
 				mainDrive.arcadeDrive(0.2, 0);
 				cubeLift.set(0.5);
 			} else {
@@ -282,7 +267,7 @@ public class Robot extends IterativeRobot {
 	void leftSwitch() {
 		switch(step) {
 		case 1:
-			if(ultrasonic.get() < 168) {
+			if(liftEnc.get() < 168) {
 				mainDrive.arcadeDrive(1, 0);
 			} else {
 				step = 2;
@@ -296,7 +281,7 @@ public class Robot extends IterativeRobot {
 			}
 			break;
 		case 3:
-			if(ultrasonic.get() < 12) {
+			if(liftEnc.get() < 12) {
 				mainDrive.arcadeDrive(0.2, 0);
 				cubeLift.set(0.5);
 			} else {
