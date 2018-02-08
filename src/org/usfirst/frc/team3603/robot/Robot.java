@@ -3,19 +3,27 @@ package org.usfirst.frc.team3603.robot;
 import com.ctre.phoenix.motorcontrol.can.WPI_TalonSRX;
 
 import edu.wpi.first.wpilibj.ADXRS450_Gyro;
-import edu.wpi.first.wpilibj.CounterBase.EncodingType;
+import edu.wpi.first.wpilibj.Compressor;
 import edu.wpi.first.wpilibj.DoubleSolenoid;
 import edu.wpi.first.wpilibj.DriverStation;
-import edu.wpi.first.wpilibj.Encoder;
 import edu.wpi.first.wpilibj.IterativeRobot;
 import edu.wpi.first.wpilibj.Joystick;
-import edu.wpi.first.wpilibj.Servo;
 import edu.wpi.first.wpilibj.SpeedControllerGroup;
-import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
+import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
 public class Robot extends IterativeRobot {
+	
+	private static final String Tim = "Tim";
+	private static final String Troy = "Troy";
+	private static final String Spencer = "Spencer";
+	private static final String Collin = "Collin";
+	
+	private String driverString;
+	private SendableChooser<String> driver = new SendableChooser<>();
+	private String manString;
+	private SendableChooser<String> man = new SendableChooser<>();
 	
 	DoubleSolenoid.Value out = DoubleSolenoid.Value.kForward;
 	DoubleSolenoid.Value in = DoubleSolenoid.Value.kReverse;
@@ -33,16 +41,20 @@ public class Robot extends IterativeRobot {
 	//This groups them into the new type of RobotDrive
 	DifferentialDrive mainDrive = new DifferentialDrive(left, right);
 	
-	WPI_TalonSRX leftHolder = new WPI_TalonSRX(7);//Leftholder speedcontroller
+	WPI_TalonSRX leftHolder = new WPI_TalonSRX(9);//Leftholder speedcontroller
 	WPI_TalonSRX rightHolder = new WPI_TalonSRX(8);//Rightholder speedcontroller
-	WPI_TalonSRX cubeLift = new WPI_TalonSRX(9); //lift speedcontroller
+	WPI_TalonSRX cubeLift = new WPI_TalonSRX(3); 
+	
+	Compressor compressor = new Compressor();
+	DoubleSolenoid omni = new DoubleSolenoid(1, 0);
+	DoubleSolenoid shift = new DoubleSolenoid(2, 3);
 	
 	Joystick joy1 = new Joystick(0); //Large twist-axis joystick
 	Joystick joy2 = new Joystick(1); //Xbox controller
 	ADXRS450_Gyro gyro = new ADXRS450_Gyro();
 	
-	MyEncoder liftEnc = new MyEncoder(cubeLift, false, 1.0);
-	Encoder driveEnc = new Encoder(0, 0, true, EncodingType.k2X);
+	//MyEncoder liftEnc = new MyEncoder(cubeLift, false, 1.0);
+	//Encoder driveEnc = new Encoder(0, 0, true, EncodingType.k2X);
 	double mult = 1.0;
 	
 	DriverStation matchInfo = DriverStation.getInstance();
@@ -58,7 +70,24 @@ public class Robot extends IterativeRobot {
 	
 	@Override
 	public void robotInit() {
+		compressor.start();
+		driver.addDefault(Tim, Tim);
+		driver.addObject(Spencer, Spencer);
+		
+		man.addDefault(Troy, Troy);
+		man.addObject(Collin, Collin);
+		
+		SmartDashboard.putData("Drivers", driver);
+		SmartDashboard.putData("Manipulators", man);
+		
 		mainDrive.setSafetyEnabled(false); //Disable safety
+		
+		/**
+		m_autoSelected = m_chooser.getSelected();
+		*/
+		
+		// autoSelected = SmartDashboard.getString("Auto Selector",
+		// defaultAuto);
 	}
 	@Override
 	public void autonomousInit() {
@@ -82,10 +111,11 @@ public class Robot extends IterativeRobot {
 			autonMode = AutonType.straight;
 		}
 		
-		driveEnc.setDistancePerPulse(1);
+		//driveEnc.setDistancePerPulse(1);
 	}
 	@Override
 	public void autonomousPeriodic() {
+		/*
 		switch(autonMode) {
 		case straight:
 			straight(); //Drive straight for auton
@@ -103,34 +133,53 @@ public class Robot extends IterativeRobot {
 			rightScale(); //Go to the right side of the scale
 			break;
 		}
+		*/
 	}
 	
 	@Override
 	public void teleopPeriodic() {
+		driverString = driver.getSelected();
+		manString = man.getSelected();
+		
+		
 		double y = Math.pow(joy1.getRawAxis(1), 3); //Double to store the joystick's y axis
-		double rot = Math.pow(joy1.getRawAxis(2), 3); //Double to store the joystick's x axis
+		double rot = -Math.pow(joy1.getRawAxis(2), 3)/1.5; //Double to store the joystick's x axis
 		if(Math.abs(y) >= 0.05 || Math.abs(rot) >= 0.05) { //Thresholding function
 			mainDrive.arcadeDrive(y, rot); //Arcade drive with the joystick's axis
 		}
-		
 		if(Math.abs(joy2.getRawAxis(1)) >= 0.05) {
 			cubeLift.set(joy2.getRawAxis(1));
 		}
 		if(joy2.getRawButton(1)) { //If button A is being pressed...
-			leftHolder.set(0.5); //Intake cube
-			rightHolder.set(-0.5);
+			leftHolder.set(0.75); //Intake cube
+			rightHolder.set(-0.75);
 		} else if(joy2.getRawButton(3)) { //If button X is being pressed...
-			leftHolder.set(0.5); // Rotate cube
-			rightHolder.set(0.5);
+			leftHolder.set(0.75); // Rotate cube
+			rightHolder.set(0.75);
 		} else if(joy2.getRawButton(4)) { //If button Y is being pressed...
-			leftHolder.set(-0.5);// Output cube
-			rightHolder.set(0.5);
+			leftHolder.set(-0.75);// Output cube
+			rightHolder.set(0.75);
+		} else {
+			leftHolder.set(0);
+			rightHolder.set(0);
+		}
+		
+		if(joy1.getRawButton(2)) {
+			omni.set(out);
+		} else {
+			omni.set(in);
+		}
+		
+		if(joy1.getRawButton(1)) {
+			shift.set(out);
+		} else {
+			shift.set(in);
 		}
 		read();
 	}
 	
 	void read() {
-		SmartDashboard.putNumber("Drive distance", liftEnc.get());
+		//SmartDashboard.putNumber("Drive distance", liftEnc.get());
 	}
 	
 	@Override
@@ -140,9 +189,9 @@ public class Robot extends IterativeRobot {
 	enum AutonType {
 		rightScale, leftScale, rightSwitch, leftSwitch, straight
 	}
-	
+	/*
 	void straight() {
-		double distance = liftEnc.get();
+		double distance = driveEnc.get();
 		if(distance < 120) {
 			drive(0.75);
 		} else {
@@ -153,7 +202,7 @@ public class Robot extends IterativeRobot {
 	void rightScale() {
 		switch(step) {
 		case 1:
-			if(liftEnc.get() < 300) {
+			if(driveEnc.get() < 300) {
 				mainDrive.arcadeDrive(1, 0);
 			} else {
 				step = 2;
@@ -167,7 +216,7 @@ public class Robot extends IterativeRobot {
 			}
 			break;
 		case 3:
-			if(liftEnc.get() < 12) {
+			if(driveEnc.get() < 12) {
 				mainDrive.arcadeDrive(0.2, 0);
 				cubeLift.set(0.5);
 			} else {
@@ -191,7 +240,7 @@ public class Robot extends IterativeRobot {
 	void leftScale() {
 		switch(step) {
 		case 1:
-			if(liftEnc.get() < 300) {
+			if(driveEnc.get() < 300) {
 				mainDrive.arcadeDrive(1, 0);
 			} else {
 				step = 2;
@@ -205,7 +254,7 @@ public class Robot extends IterativeRobot {
 			}
 			break;
 		case 3:
-			if(liftEnc.get() < 12) {
+			if(driveEnc.get() < 12) {
 				mainDrive.arcadeDrive(0.2, 0);
 				cubeLift.set(0.5);
 			} else {
@@ -229,7 +278,7 @@ public class Robot extends IterativeRobot {
 	void rightSwitch() {
 		switch(step) {
 		case 1:
-			if(liftEnc.get() < 168) {
+			if(driveEnc.get() < 168) {
 				mainDrive.arcadeDrive(1, 0);
 			} else {
 				step = 2;
@@ -243,7 +292,7 @@ public class Robot extends IterativeRobot {
 			}
 			break;
 		case 3:
-			if(liftEnc.get() < 12) {
+			if(driveEnc.get() < 12) {
 				mainDrive.arcadeDrive(0.2, 0);
 				cubeLift.set(0.5);
 			} else {
@@ -267,7 +316,7 @@ public class Robot extends IterativeRobot {
 	void leftSwitch() {
 		switch(step) {
 		case 1:
-			if(liftEnc.get() < 168) {
+			if(driveEnc.get() < 168) {
 				mainDrive.arcadeDrive(1, 0);
 			} else {
 				step = 2;
@@ -281,7 +330,7 @@ public class Robot extends IterativeRobot {
 			}
 			break;
 		case 3:
-			if(liftEnc.get() < 12) {
+			if(driveEnc.get() < 12) {
 				mainDrive.arcadeDrive(0.2, 0);
 				cubeLift.set(0.5);
 			} else {
@@ -310,4 +359,5 @@ public class Robot extends IterativeRobot {
 	}
 	void place() {
 	}
+	*/
 }
