@@ -132,7 +132,7 @@ public class Robot extends IterativeRobot {
 		case rightScale:
 			rightScale(); //Go to the right side of the scale
 			break;
-		}
+		}/
 		*/
 	}
 	
