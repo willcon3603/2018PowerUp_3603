@@ -21,9 +21,9 @@ public class Robot extends IterativeRobot {
 	DoubleSolenoid.Value in = DoubleSolenoid.Value.kReverse;
 	
 	//All of these are individual speed controllers
-	WPI_TalonSRX leftFront = new WPI_TalonSRX(1);
-	WPI_TalonSRX leftMiddle = new WPI_TalonSRX(2);
-	WPI_TalonSRX leftBack = new WPI_TalonSRX(3);
+	WPI_TalonSRX leftFront = new WPI_TalonSRX(10);
+	WPI_TalonSRX leftMiddle = new WPI_TalonSRX(11);
+	WPI_TalonSRX leftBack = new WPI_TalonSRX(12);
 	WPI_TalonSRX rightFront = new WPI_TalonSRX(4);
 	WPI_TalonSRX rightMiddle = new WPI_TalonSRX(5);
 	WPI_TalonSRX rightBack = new WPI_TalonSRX(6);
