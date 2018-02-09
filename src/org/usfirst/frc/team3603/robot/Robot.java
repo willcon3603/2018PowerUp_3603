@@ -190,13 +190,14 @@ public class Robot extends IterativeRobot {
 		if(manString == Troy) {
 			if(Math.abs(joy2.getRawAxis(1)) >= 0.05) { //Threshhold for cube lift speed
 				liftPID.disable();
-				liftToggle = false;
+				liftPID.reset();
 				did = false;
 				cubeLift.set(joy2.getRawAxis(2));
 				liftPID.setSetpoint(liftEnc.get());
 				liftPID.enable();
 			} else if(joy1.getRawButton(1)) {
 				liftPID.disable();
+				liftPID.reset();
 				liftToggle = !liftToggle;
 				if(liftToggle) {
 					liftPID.setSetpoint(scaleNeutralHeight);
@@ -205,7 +206,7 @@ public class Robot extends IterativeRobot {
 				}
 				while(joy1.getRawButton(1)) {}
 				liftPID.enable();
-			} else if(liftToggle && !did) {
+			} else if(!did) {
 				liftPID.enable();
 				did = true;
 			}
@@ -230,21 +231,21 @@ public class Robot extends IterativeRobot {
 		} else {
 			if(Math.abs(joy2.getRawAxis(1)) >= 0.05 && joy2.getPOV() == -1) { //Threshhold for cube lift speed
 				liftPID.disable();
-				liftToggle = false;
 				did = false;
 				cubeLift.set(joy2.getRawAxis(2));
 				liftPID.setSetpoint(liftEnc.get());
 			} else if(joy2.getPOV() == 0) { //If the D-pad is up...
 				liftToggle = true;
+				did = true;
 				liftPID.disable();
 				liftPID.setSetpoint(scaleNeutralHeight);
 				liftPID.enable();
 			} else if(joy2.getPOV() == 180) { //If the D-pad is down...
-				liftToggle = true;
 				liftPID.disable();
+				did = true;
 				liftPID.setSetpoint(0);
 				liftPID.enable();
-			} else if(liftToggle && !did) {
+			} else if(!did) {
 				liftPID.enable();
 				did = true;
 			}
