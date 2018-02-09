@@ -53,10 +53,10 @@ public class Robot extends IterativeRobot {
 	Joystick joy1 = new Joystick(0); //Large twist-axis joystick
 	Joystick joy2 = new Joystick(1); //Xbox controller
 	ADXRS450_Gyro gyro = new ADXRS450_Gyro(); //Gyro needs switched
-	MyEncoder liftEnc = new MyEncoder(cubeLift, false, 1.0); //Encoder for the cube lift
+	MyEncoder liftEnc = new MyEncoder(cubeLift, false, 1.0); //Encoder for the cube lift TODO multiplier
 	PIDController liftPID = new PIDController(0, 0, 0, liftEnc, cubeLift);
 	//Encoder driveEnc = new Encoder(0, 0, true, EncodingType.k2X); //Encoder for distance driven
-	double mult = 1.0; //Multiplier for driveEnc
+	double mult = 1.0; //Multiplier for driveEnc TODO multiplier
 	
 	DriverStation matchInfo = DriverStation.getInstance(); //Object to get switch/scale colors
 	
@@ -66,8 +66,9 @@ public class Robot extends IterativeRobot {
 	char switchPos;
 	AutonType autonMode; //Enumerator for the autonomous mode
 	int step;
-	boolean doToggle = false;
 	boolean liftToggle = false;
+	boolean did = false;
+	final static double scaleNeutralHeight = 100; //TODO change this
 	
 	@Override
 	public void robotInit() {
@@ -189,18 +190,24 @@ public class Robot extends IterativeRobot {
 		if(manString == Troy) {
 			if(Math.abs(joy2.getRawAxis(1)) >= 0.05) { //Threshhold for cube lift speed
 				liftPID.disable();
+				liftToggle = false;
+				did = false;
 				cubeLift.set(joy2.getRawAxis(2));
 				liftPID.setSetpoint(liftEnc.get());
+				liftPID.enable();
 			} else if(joy1.getRawButton(1)) {
 				liftPID.disable();
 				liftToggle = !liftToggle;
 				if(liftToggle) {
-					liftPID.setSetpoint(100); //TODO put in actual scale neutral height
+					liftPID.setSetpoint(scaleNeutralHeight);
 				} else {
 					liftPID.setSetpoint(0);
 				}
 				while(joy1.getRawButton(1)) {}
 				liftPID.enable();
+			} else if(liftToggle && !did) {
+				liftPID.enable();
+				did = true;
 			}
 			
 			
@@ -222,14 +229,24 @@ public class Robot extends IterativeRobot {
 			}
 		} else {
 			if(Math.abs(joy2.getRawAxis(1)) >= 0.05 && joy2.getPOV() == -1) { //Threshhold for cube lift speed
+				liftPID.disable();
+				liftToggle = false;
+				did = false;
 				cubeLift.set(joy2.getRawAxis(2));
-			} else if(joy2.getPOV() == 0) {//If the D-pad is up...
-				//TODO PID to snap up
+				liftPID.setSetpoint(liftEnc.get());
+			} else if(joy2.getPOV() == 0) { //If the D-pad is up...
+				liftToggle = true;
+				liftPID.disable();
+				liftPID.setSetpoint(scaleNeutralHeight);
+				liftPID.enable();
 			} else if(joy2.getPOV() == 180) { //If the D-pad is down...
-				//TODO PID to drop down
-			} else { //If nothing is pressed...
-				cubeLift.set(0); //Stop motor
-				//TODO PID to keep steady
+				liftToggle = true;
+				liftPID.disable();
+				liftPID.setSetpoint(0);
+				liftPID.enable();
+			} else if(liftToggle && !did) {
+				liftPID.enable();
+				did = true;
 			}
 			
 			if(Math.abs(joy2.getRawAxis(5)) >= 0.05) { //Variable input/output cube

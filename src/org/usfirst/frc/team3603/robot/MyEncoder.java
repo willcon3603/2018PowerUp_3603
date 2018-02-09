@@ -23,6 +23,7 @@ public class MyEncoder implements PIDSource {
 	
 	public double get() {
 		double distance = talon.getSelectedSensorPosition(0) * multiplier;
+		distance = inv ? -distance : distance;
 		return distance;
 	}
 
@@ -35,12 +36,12 @@ public class MyEncoder implements PIDSource {
 	@Override
 	public PIDSourceType getPIDSourceType() {
 		// TODO Auto-generated method stub
-		return null;
+		return PIDSourceType.kDisplacement;
 	}
 
 	@Override
 	public double pidGet() {
 		// TODO Auto-generated method stub
-		return talon.getSelectedSensorPosition(0) * multiplier;
+		return get();
 	}
 }
