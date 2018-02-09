@@ -8,6 +8,7 @@ import edu.wpi.first.wpilibj.DoubleSolenoid;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.IterativeRobot;
 import edu.wpi.first.wpilibj.Joystick;
+import edu.wpi.first.wpilibj.PIDController;
 import edu.wpi.first.wpilibj.SpeedControllerGroup;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
@@ -15,18 +16,18 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
 public class Robot extends IterativeRobot {
 	
-	private static final String Tim = "Tim";
-	private static final String Troy = "Troy";
-	private static final String Spencer = "Spencer";
-	private static final String Collin = "Collin";
+	private static final String Tim = "Tim"; //String for Tim's profile
+	private static final String Troy = "Troy"; //String for Troy's profile
+	private static final String Spencer = "Spencer"; //String for Spencer's profile
+	private static final String Collin = "Collin"; //String for Collin's profile
 	
-	private String driverString;
-	private SendableChooser<String> driver = new SendableChooser<>();
-	private String manString;
-	private SendableChooser<String> man = new SendableChooser<>();
+	private String driverString; //String for chosen driver
+	private SendableChooser<String> driver = new SendableChooser<>(); //Driver chooser
+	private String manString; //String for manipulator
+	private SendableChooser<String> man = new SendableChooser<>(); //Manipulator chooser
 	
-	DoubleSolenoid.Value out = DoubleSolenoid.Value.kForward;
-	DoubleSolenoid.Value in = DoubleSolenoid.Value.kReverse;
+	final static DoubleSolenoid.Value out = DoubleSolenoid.Value.kForward; //Piston out value
+	static final DoubleSolenoid.Value in = DoubleSolenoid.Value.kReverse; //Piston in value
 	
 	//All of these are individual speed controllers
 	WPI_TalonSRX leftFront = new WPI_TalonSRX(10);
@@ -43,55 +44,52 @@ public class Robot extends IterativeRobot {
 	
 	WPI_TalonSRX leftHolder = new WPI_TalonSRX(9);//Leftholder speedcontroller
 	WPI_TalonSRX rightHolder = new WPI_TalonSRX(8);//Rightholder speedcontroller
-	WPI_TalonSRX cubeLift = new WPI_TalonSRX(3); 
+	WPI_TalonSRX cubeLift = new WPI_TalonSRX(3); //Cube lift speed controller
 	
 	Compressor compressor = new Compressor();
-	DoubleSolenoid omni = new DoubleSolenoid(1, 0);
-	DoubleSolenoid shift = new DoubleSolenoid(2, 3);
+	DoubleSolenoid omni = new DoubleSolenoid(1, 0); //Omni solenoid
+	DoubleSolenoid shift = new DoubleSolenoid(2, 3);//Transmission solenoid
 	
 	Joystick joy1 = new Joystick(0); //Large twist-axis joystick
 	Joystick joy2 = new Joystick(1); //Xbox controller
-	ADXRS450_Gyro gyro = new ADXRS450_Gyro();
+	ADXRS450_Gyro gyro = new ADXRS450_Gyro(); //Gyro needs switched
+	MyEncoder liftEnc = new MyEncoder(cubeLift, false, 1.0); //Encoder for the cube lift
+	PIDController liftPID = new PIDController(0, 0, 0, liftEnc, cubeLift);
+	//Encoder driveEnc = new Encoder(0, 0, true, EncodingType.k2X); //Encoder for distance driven
+	double mult = 1.0; //Multiplier for driveEnc
 	
-	//MyEncoder liftEnc = new MyEncoder(cubeLift, false, 1.0);
-	//Encoder driveEnc = new Encoder(0, 0, true, EncodingType.k2X);
-	double mult = 1.0;
-	
-	DriverStation matchInfo = DriverStation.getInstance();
+	DriverStation matchInfo = DriverStation.getInstance(); //Object to get switch/scale colors
 	
 	String sides; //A string to store the switch and scale colors
 	int position; //An integer to store the starting position
 	char scalePos;
 	char switchPos;
-	AutonType autonMode;
+	AutonType autonMode; //Enumerator for the autonomous mode
 	int step;
-	
-	double time = 0;
+	boolean doToggle = false;
+	boolean liftToggle = false;
 	
 	@Override
 	public void robotInit() {
-		compressor.start();
-		driver.addDefault(Tim, Tim);
-		driver.addObject(Spencer, Spencer);
+		compressor.start(); //Start compressor
+		driver.addDefault(Tim, Tim);//Add Tim's profile to driver chooser
+		driver.addObject(Spencer, Spencer); //Add Spencer's profile to driver chooser
 		
-		man.addDefault(Troy, Troy);
-		man.addObject(Collin, Collin);
+		man.addDefault(Troy, Troy);//Add Troy's profile to manip. chooser
+		man.addObject(Collin, Collin); //Add Collin's profile to manip. chooser
 		
+		//Put choosers on SmartDashboard
 		SmartDashboard.putData("Drivers", driver);
 		SmartDashboard.putData("Manipulators", man);
 		
 		mainDrive.setSafetyEnabled(false); //Disable safety
 		
-		/**
-		m_autoSelected = m_chooser.getSelected();
-		*/
-		
-		// autoSelected = SmartDashboard.getString("Auto Selector",
-		// defaultAuto);
+		liftPID.setSetpoint(0);
+		liftPID.enable();
 	}
 	@Override
 	public void autonomousInit() {
-		step = 1;
+		step = 1; //set the auton step to step 1
 		sides = matchInfo.getGameSpecificMessage(); //Get the switch and scale colors
 		switchPos = sides.charAt(0);
 		scalePos = sides.charAt(1);
@@ -142,44 +140,117 @@ public class Robot extends IterativeRobot {
 		manString = man.getSelected();
 		
 		
-		double y = Math.pow(joy1.getRawAxis(1), 3); //Double to store the joystick's y axis
-		double rot = -Math.pow(joy1.getRawAxis(2), 3)/1.5; //Double to store the joystick's x axis
-		if(Math.abs(y) >= 0.05 || Math.abs(rot) >= 0.05) { //Thresholding function
-			mainDrive.arcadeDrive(y, rot); //Arcade drive with the joystick's axis
-		}
-		if(Math.abs(joy2.getRawAxis(1)) >= 0.05) {
-			cubeLift.set(joy2.getRawAxis(1));
-		}
-		if(joy2.getRawButton(1)) { //If button A is being pressed...
-			leftHolder.set(0.75); //Intake cube
-			rightHolder.set(-0.75);
-		} else if(joy2.getRawButton(3)) { //If button X is being pressed...
-			leftHolder.set(0.75); // Rotate cube
-			rightHolder.set(0.75);
-		} else if(joy2.getRawButton(4)) { //If button Y is being pressed...
-			leftHolder.set(-0.75);// Output cube
-			rightHolder.set(0.75);
-		} else {
-			leftHolder.set(0);
-			rightHolder.set(0);
+		/*******************
+		 * DRIVER PROFILES *
+		 *******************/
+		
+		if(driverString == Tim) { //Tim profile
+			double y = Math.pow(joy1.getRawAxis(1), 3) * joy1.getRawAxis(3); //Double to store the joystick's y axis
+			double rot = -Math.pow(joy1.getRawAxis(2), 3)/1.5 * joy1.getRawAxis(3); //Double to store the joystick's x axis
+			if(Math.abs(y) >= 0.05 || Math.abs(rot) >= 0.05 && !joy1.getRawButton(1)) { //Thresholding function
+				mainDrive.arcadeDrive(y, rot); //Arcade drive with the joystick's axis
+			} else {
+				mainDrive.arcadeDrive(0, 0); //Stop if value doesn't meet threshhold
+			}
+			
+			if(joy1.getRawButton(2)) { //Press and hold button 2 for omni wheels
+				omni.set(out);
+			} else {
+				omni.set(in);
+			}
+			
+		} else { //Spencer profile
+			double y = Math.pow(joy1.getRawAxis(1), 3) * joy1.getRawAxis(3); //Double to store the joystick's y axis
+			double rot = -Math.pow(joy1.getRawAxis(2), 3)/1.5 * joy1.getRawAxis(3); //Double to store the joystick's x axis
+			if(Math.abs(y) >= 0.05 || Math.abs(rot) >= 0.05 && !joy1.getRawButton(1)) { //Thresholding function
+				mainDrive.arcadeDrive(y, rot); //Arcade drive with the joystick's axis
+			} else {
+				mainDrive.arcadeDrive(0, 0);
+			}
+			
+			if(joy1.getRawButton(2)) { //Press and hold button 2 for omni wheels
+				omni.set(out);
+			} else {
+				omni.set(in);
+			}
+			
+			if(joy1.getRawButton(3)) { //Press and hold button 3 for transmission
+				shift.set(out);
+			} else {
+				shift.set(in);
+			}
 		}
 		
-		if(joy1.getRawButton(2)) {
-			omni.set(out);
-		} else {
-			omni.set(in);
-		}
 		
-		if(joy1.getRawButton(1)) {
-			shift.set(out);
+		/************************
+		 * MANIPULATOR PROFILES *
+		 ************************/
+		
+		if(manString == Troy) {
+			if(Math.abs(joy2.getRawAxis(1)) >= 0.05) { //Threshhold for cube lift speed
+				liftPID.disable();
+				cubeLift.set(joy2.getRawAxis(2));
+				liftPID.setSetpoint(liftEnc.get());
+			} else if(joy1.getRawButton(1)) {
+				liftPID.disable();
+				liftToggle = !liftToggle;
+				if(liftToggle) {
+					liftPID.setSetpoint(100); //TODO put in actual scale neutral height
+				} else {
+					liftPID.setSetpoint(0);
+				}
+				while(joy1.getRawButton(1)) {}
+				liftPID.enable();
+			}
+			
+			
+			if(Math.abs(joy2.getRawAxis(2)) >= 0.25) { //If the left trigger is pulled...
+				leftHolder.set(0.75); //Input cube
+				rightHolder.set(-0.75);
+			} else if(Math.abs(joy2.getRawAxis(3)) >= 0.25) { //If right trigger is pulled...
+				leftHolder.set(-0.75);// Output cube
+				rightHolder.set(0.75);
+			} else if(joy2.getRawButton(5)) { //If left bumper is pressed...
+				leftHolder.set(-0.75); // Rotate cube
+				rightHolder.set(-0.75);
+			} else if(joy2.getRawButton(6)) { //If right bumper is pressed...
+				leftHolder.set(0.75); // Rotate cube
+				rightHolder.set(0.75);
+			} else { //If nothing is pressed...
+				leftHolder.set(0); //Stop cube motors
+				rightHolder.set(0);
+			}
 		} else {
-			shift.set(in);
+			if(Math.abs(joy2.getRawAxis(1)) >= 0.05 && joy2.getPOV() == -1) { //Threshhold for cube lift speed
+				cubeLift.set(joy2.getRawAxis(2));
+			} else if(joy2.getPOV() == 0) {//If the D-pad is up...
+				//TODO PID to snap up
+			} else if(joy2.getPOV() == 180) { //If the D-pad is down...
+				//TODO PID to drop down
+			} else { //If nothing is pressed...
+				cubeLift.set(0); //Stop motor
+				//TODO PID to keep steady
+			}
+			
+			if(Math.abs(joy2.getRawAxis(5)) >= 0.05) { //Variable input/output cube
+				leftHolder.set(joy2.getRawAxis(5));
+				rightHolder.set(-joy2.getRawAxis(5));
+			} else if(Math.abs(joy2.getRawAxis(2)) >= 0.05) { //Variable rotate cube left
+				leftHolder.set(joy2.getRawAxis(2));
+				rightHolder.set(joy2.getRawAxis(2));
+			} else if(Math.abs(joy2.getRawAxis(3)) >= 0.05) { //Variable rotate cube right
+				leftHolder.set(-joy2.getRawAxis(3));
+				rightHolder.set(-joy2.getRawAxis(3));
+			} else { //Else, stop
+				leftHolder.set(0);
+				rightHolder.set(0);
+			}
 		}
 		read();
 	}
 	
 	void read() {
-		//SmartDashboard.putNumber("Drive distance", liftEnc.get());
+		SmartDashboard.putNumber("Drive distance", liftEnc.get());
 	}
 	
 	@Override
