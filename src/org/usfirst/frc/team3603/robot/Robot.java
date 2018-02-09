@@ -228,20 +228,22 @@ public class Robot extends IterativeRobot {
 				leftHolder.set(0); //Stop cube motors
 				rightHolder.set(0);
 			}
-		} else {
+		} else if(manString == Collin){
 			if(Math.abs(joy2.getRawAxis(1)) >= 0.05 && joy2.getPOV() == -1) { //Threshhold for cube lift speed
 				liftPID.disable();
 				did = false;
+				liftPID.reset();
 				cubeLift.set(joy2.getRawAxis(2));
 				liftPID.setSetpoint(liftEnc.get());
 			} else if(joy2.getPOV() == 0) { //If the D-pad is up...
-				liftToggle = true;
 				did = true;
 				liftPID.disable();
+				liftPID.reset();
 				liftPID.setSetpoint(scaleNeutralHeight);
 				liftPID.enable();
 			} else if(joy2.getPOV() == 180) { //If the D-pad is down...
 				liftPID.disable();
+				liftPID.reset();
 				did = true;
 				liftPID.setSetpoint(0);
 				liftPID.enable();
@@ -273,6 +275,46 @@ public class Robot extends IterativeRobot {
 	
 	@Override
 	public void testPeriodic() {
+		if(Math.abs(joy2.getRawAxis(1)) >= 0.05) { //Threshhold for cube lift speed
+			liftPID.disable();
+			liftPID.reset();
+			did = false;
+			cubeLift.set(joy2.getRawAxis(2));
+			liftPID.setSetpoint(liftEnc.get());
+			liftPID.enable();
+		} else if(joy1.getRawButton(1)) {
+			liftPID.disable();
+			liftPID.reset();
+			liftToggle = !liftToggle;
+			if(liftToggle) {
+				liftPID.setSetpoint(scaleNeutralHeight);
+			} else {
+				liftPID.setSetpoint(0);
+			}
+			while(joy1.getRawButton(1)) {}
+			liftPID.enable();
+		} else if(!did) {
+			liftPID.enable();
+			did = true;
+		}
+		
+		
+		if(Math.abs(joy2.getRawAxis(2)) >= 0.25) { //If the left trigger is pulled...
+			leftHolder.set(0.75); //Input cube
+			rightHolder.set(-0.75);
+		} else if(Math.abs(joy2.getRawAxis(3)) >= 0.25) { //If right trigger is pulled...
+			leftHolder.set(-0.75);// Output cube
+			rightHolder.set(0.75);
+		} else if(joy2.getRawButton(5)) { //If left bumper is pressed...
+			leftHolder.set(-0.75); // Rotate cube
+			rightHolder.set(-0.75);
+		} else if(joy2.getRawButton(6)) { //If right bumper is pressed...
+			leftHolder.set(0.75); // Rotate cube
+			rightHolder.set(0.75);
+		} else { //If nothing is pressed...
+			leftHolder.set(0); //Stop cube motors
+			rightHolder.set(0);
+		}
 	}
 	
 	enum AutonType {
