@@ -10,11 +10,13 @@ public class MyEncoder implements PIDSource {
 	WPI_TalonSRX talon;
 	boolean inv;
 	double multiplier;
-	
+	double offset;
 	public MyEncoder(WPI_TalonSRX input, boolean invert, double mult) {
 		talon = input;
 		inv = invert;
 		multiplier = mult;
+		talon.getSensorCollection();
+		offset = talon.getSelectedSensorPosition(0);
 	}
 	
 	public void invert(boolean in) {
@@ -22,7 +24,7 @@ public class MyEncoder implements PIDSource {
 	}
 	
 	public double get() {
-		double distance = talon.getSelectedSensorPosition(0) * multiplier;
+		double distance = talon.getSelectedSensorPosition(0) * multiplier - offset;
 		distance = inv ? -distance : distance;
 		return distance;
 	}
