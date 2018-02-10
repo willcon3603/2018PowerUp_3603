@@ -54,13 +54,14 @@ public class Robot extends IterativeRobot {
 	Joystick joy1 = new Joystick(0); //Large twist-axis joystick
 	Joystick joy2 = new Joystick(1); //Xbox controller
 	ADXRS450_Gyro gyro = new ADXRS450_Gyro(); //Gyro needs switched
-	MyEncoder liftEnc = new MyEncoder(cubeLift, false, 1.0); //Encoder for the cube lift TODO multiplier
-	PIDController liftPID = new PIDController(0.0005, 0, 0, liftEnc, cubeLift);
+	MyEncoder liftEnc = new MyEncoder(cubeLift, false, 1.0); //Encoder for the cube lift
+	WPI_TalonSRX pidStore = new WPI_TalonSRX(1);
+	PIDController liftPID = new PIDController(0.0005, 0, 0, liftEnc, pidStore);
 	//Encoder driveEnc = new Encoder(0, 0, true, EncodingType.k2X); //Encoder for distance driven
 	double mult = 1.0; //Multiplier for driveEnc TODO multiplier
 	
 	DriverStation matchInfo = DriverStation.getInstance(); //Object to get switch/scale colors
-	//TODO Add PID
+	
 	String sides; //A string to store the switch and scale colors
 	int position; //An integer to store the starting position
 	char scalePos;
@@ -73,6 +74,7 @@ public class Robot extends IterativeRobot {
 	
 	@Override
 	public void robotInit() {
+		pidStore.disable();
 		cubeLift.getSensorCollection();
 		compressor.start(); //Start compressor
 		driver.addDefault(Tim, Tim);//Add Tim's profile to driver chooser
@@ -88,7 +90,7 @@ public class Robot extends IterativeRobot {
 		
 		mainDrive.setSafetyEnabled(false); //Disable safety
 		
-		//liftPID.setSetpoint(0);
+		liftPID.setSetpoint(1000);
 		//liftPID.enable();
 		liftPID.setOutputRange(-0.3, 0.3);
 	}
@@ -192,26 +194,21 @@ public class Robot extends IterativeRobot {
 		 ************************/
 		
 		if(manString == Troy) {
-			if(Math.abs(joy2.getRawAxis(1)) >= 0.05) { //Threshhold for cube lift speed
-				//liftPID.disable();
-				//liftPID.reset();
+			if(Math.abs(joy2.getRawAxis(1)) >= 0.08) { //Threshhold for cube lift speed
 				did = false;
+				liftPID.reset();
 				cubeLift.set(joy2.getRawAxis(1));
-				//liftPID.setSetpoint(liftEnc.get());
+				liftPID.setSetpoint(liftEnc.get());
 			} else if(joy2.getRawButton(1)) {
-				//liftPID.disable();
-				//liftPID.reset();
-				//liftToggle = !liftToggle;
+				liftToggle = !liftToggle;
 				if(liftToggle) {
-					//liftPID.setSetpoint(scaleNeutralHeight);
+					liftPID.setSetpoint(scaleNeutralHeight);
 				} else {
-					//liftPID.setSetpoint(0);
+					liftPID.setSetpoint(0);
 				}
 				while(joy2.getRawButton(1)) {}
-				//liftPID.enable();
-			} else if(!did) {
-				//liftPID.enable();
-				did = true;
+			} else {
+				cubeLift.set(-liftPID.get());
 			}
 			
 			
@@ -232,11 +229,11 @@ public class Robot extends IterativeRobot {
 				rightHolder.set(0);
 			}
 		} else if(manString == Collin){
-			if(Math.abs(joy2.getRawAxis(1)) >= 0.05) { //Threshhold for cube lift speed
+			if(Math.abs(joy2.getRawAxis(1)) >= 0.08) { //Threshhold for cube lift speed
 				//liftPID.disable();
 				did = false;
 				//liftPID.reset();
-				cubeLift.set(-joy2.getRawAxis(1));
+				cubeLift.set(joy2.getRawAxis(1));
 				//liftPID.setSetpoint(liftEnc.get());
 			} else if(joy2.getPOV() == 0) { //If the D-pad is up...
 				did = true;
@@ -273,10 +270,14 @@ public class Robot extends IterativeRobot {
 		} else {
 			
 			if(joy2.getRawButton(1)) {
-				liftPID.setSetpoint(1000);
-				liftPID.enable();
+				cubeLift.set(-liftPID.get());
 			} else {
-				liftPID.disable();
+				cubeLift.set(0);
+			}
+			
+			if(joy2.getRawButton(2)) {
+				liftEnc.zero();
+				liftPID.reset();
 			}
 		}
 		read();

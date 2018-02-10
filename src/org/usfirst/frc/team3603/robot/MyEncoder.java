@@ -40,6 +40,10 @@ public class MyEncoder implements PIDSource {
 		// TODO Auto-generated method stub
 		return PIDSourceType.kDisplacement;
 	}
+	
+	public void zero() {
+		offset = talon.getSelectedSensorPosition(0);
+	}
 
 	@Override
 	public double pidGet() {
