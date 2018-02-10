@@ -48,7 +48,7 @@ public class Robot extends IterativeRobot {
 	WPI_TalonSRX cubeLift = new WPI_TalonSRX(3); //Cube lift speed controller
 	
 	Compressor compressor = new Compressor();
-	DoubleSolenoid omni = new DoubleSolenoid(1, 0); //Omni solenoid
+	DoubleSolenoid omni = new DoubleSolenoid(0, 1); //Omni solenoid
 	DoubleSolenoid shift = new DoubleSolenoid(2, 3);//Transmission solenoid
 	
 	Joystick joy1 = new Joystick(0); //Large twist-axis joystick
@@ -57,6 +57,7 @@ public class Robot extends IterativeRobot {
 	MyEncoder liftEnc = new MyEncoder(cubeLift, false, 1.0); //Encoder for the cube lift
 	WPI_TalonSRX pidStore = new WPI_TalonSRX(1);
 	PIDController liftPID = new PIDController(0.0005, 0, 0, liftEnc, pidStore);
+	PressureSensor pressure = new PressureSensor(0);
 	//Encoder driveEnc = new Encoder(0, 0, true, EncodingType.k2X); //Encoder for distance driven
 	double mult = 1.0; //Multiplier for driveEnc TODO multiplier
 	
@@ -68,9 +69,10 @@ public class Robot extends IterativeRobot {
 	char switchPos;
 	AutonType autonMode; //Enumerator for the autonomous mode
 	int step;
+	boolean doOnce = true;
 	boolean liftToggle = false;
 	boolean did = false;
-	final static double scaleNeutralHeight = 5000; //TODO change this
+	final static double scaleNeutralHeight = 20000; //TODO change this
 	
 	@Override
 	public void robotInit() {
@@ -90,9 +92,9 @@ public class Robot extends IterativeRobot {
 		
 		mainDrive.setSafetyEnabled(false); //Disable safety
 		
-		liftPID.setSetpoint(1000);
-		//liftPID.enable();
-		liftPID.setOutputRange(-0.3, 0.3);
+		liftPID.setSetpoint(0);
+		liftPID.setOutputRange(-0.7, 0.7);
+		liftEnc.zero();
 	}
 	@Override
 	public void autonomousInit() {
@@ -194,12 +196,18 @@ public class Robot extends IterativeRobot {
 		 ************************/
 		
 		if(manString == Troy) {
+			if(doOnce) {
+				liftPID.enable();
+				doOnce = false;
+			}
 			if(Math.abs(joy2.getRawAxis(1)) >= 0.08) { //Threshhold for cube lift speed
-				did = false;
 				liftPID.reset();
 				cubeLift.set(joy2.getRawAxis(1));
 				liftPID.setSetpoint(liftEnc.get());
+				doOnce = true;
 			} else if(joy2.getRawButton(1)) {
+				liftPID.reset();
+				doOnce = true;
 				liftToggle = !liftToggle;
 				if(liftToggle) {
 					liftPID.setSetpoint(scaleNeutralHeight);
@@ -229,29 +237,25 @@ public class Robot extends IterativeRobot {
 				rightHolder.set(0);
 			}
 		} else if(manString == Collin){
+			if(doOnce) {
+				liftPID.enable();
+				doOnce = false;
+			}
 			if(Math.abs(joy2.getRawAxis(1)) >= 0.08) { //Threshhold for cube lift speed
-				//liftPID.disable();
-				did = false;
-				//liftPID.reset();
+				liftPID.reset();
 				cubeLift.set(joy2.getRawAxis(1));
-				//liftPID.setSetpoint(liftEnc.get());
+				liftPID.setSetpoint(liftEnc.get());
+				doOnce = true;
 			} else if(joy2.getPOV() == 0) { //If the D-pad is up...
-				did = true;
-				/*
-				liftPID.disable();
+				doOnce = true;
 				liftPID.reset();
 				liftPID.setSetpoint(scaleNeutralHeight);
-				liftPID.enable();
-				*/
 			} else if(joy2.getPOV() == 180) { //If the D-pad is down...
-				//liftPID.disable();
-				//liftPID.reset();
-				did = true;
-				//liftPID.setSetpoint(0);
-				//liftPID.enable();
-			} else if(!did) {
-				//liftPID.enable();
-				did = true;
+				doOnce = true;
+				liftPID.reset();
+				liftPID.setSetpoint(0);
+			} else {
+				cubeLift.set(-liftPID.get());
 			}
 			
 			if(Math.abs(joy2.getRawAxis(5)) >= 0.05) { //Variable input/output cube
@@ -280,6 +284,10 @@ public class Robot extends IterativeRobot {
 				liftPID.reset();
 			}
 		}
+		if(joy2.getRawButton(10)) {
+			liftEnc.zero();
+			liftPID.reset();
+		}
 		read();
 	}
 	
@@ -287,6 +295,13 @@ public class Robot extends IterativeRobot {
 		SmartDashboard.putNumber("Drive distance", liftEnc.get());
 		SmartDashboard.putNumber("PID", liftPID.get());
 		SmartDashboard.putNumber("Motor", cubeLift.get());
+		SmartDashboard.putNumber("POV", joy2.getPOV());
+		if(pressure.get() >= 30) {
+			SmartDashboard.putBoolean("usable pressure", true);
+		} else {
+			SmartDashboard.putBoolean("usable pressure", false);
+		}
+		SmartDashboard.putNumber("Pressure", pressure.get());
 	}
 	
 	@Override

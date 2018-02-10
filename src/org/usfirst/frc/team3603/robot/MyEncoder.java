@@ -11,6 +11,7 @@ public class MyEncoder implements PIDSource {
 	boolean inv;
 	double multiplier;
 	double offset;
+	
 	public MyEncoder(WPI_TalonSRX input, boolean invert, double mult) {
 		talon = input;
 		inv = invert;
