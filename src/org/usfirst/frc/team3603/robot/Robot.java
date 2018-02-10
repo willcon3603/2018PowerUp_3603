@@ -4,8 +4,10 @@ import com.ctre.phoenix.motorcontrol.can.WPI_TalonSRX;
 
 import edu.wpi.first.wpilibj.ADXRS450_Gyro;
 import edu.wpi.first.wpilibj.Compressor;
+import edu.wpi.first.wpilibj.CounterBase.EncodingType;
 import edu.wpi.first.wpilibj.DoubleSolenoid;
 import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.Encoder;
 import edu.wpi.first.wpilibj.IterativeRobot;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.PIDController;
@@ -46,6 +48,7 @@ public class Robot extends IterativeRobot {
 	WPI_TalonSRX leftHolder = new WPI_TalonSRX(9);//Leftholder speedcontroller
 	WPI_TalonSRX rightHolder = new WPI_TalonSRX(8);//Rightholder speedcontroller
 	WPI_TalonSRX cubeLift = new WPI_TalonSRX(3); //Cube lift speed controller
+	WPI_TalonSRX arm = new WPI_TalonSRX(7);
 	
 	Compressor compressor = new Compressor();
 	DoubleSolenoid omni = new DoubleSolenoid(0, 1); //Omni solenoid
@@ -55,8 +58,12 @@ public class Robot extends IterativeRobot {
 	Joystick joy2 = new Joystick(1); //Xbox controller
 	ADXRS450_Gyro gyro = new ADXRS450_Gyro(); //Gyro needs switched
 	MyEncoder liftEnc = new MyEncoder(cubeLift, false, 1.0); //Encoder for the cube lift
+	Encoder armEnc = new Encoder(2, 3, false, EncodingType.k2X);
 	WPI_TalonSRX pidStore = new WPI_TalonSRX(1);
+	WPI_TalonSRX pidStore2 = new WPI_TalonSRX(2);
 	PIDController liftPID = new PIDController(0.0005, 0, 0, liftEnc, pidStore);
+	PIDController armPID = new PIDController(0.0005, 0, 0, armEnc, pidStore2);
+	
 	PressureSensor pressure = new PressureSensor(0);
 	//Encoder driveEnc = new Encoder(0, 0, true, EncodingType.k2X); //Encoder for distance driven
 	double mult = 1.0; //Multiplier for driveEnc TODO multiplier
@@ -70,6 +77,7 @@ public class Robot extends IterativeRobot {
 	AutonType autonMode; //Enumerator for the autonomous mode
 	int step;
 	boolean doOnce = true;
+	boolean armEnable = true;
 	boolean liftToggle = false;
 	boolean did = false;
 	final static double scaleNeutralHeight = 20000; //TODO change this
@@ -77,6 +85,7 @@ public class Robot extends IterativeRobot {
 	@Override
 	public void robotInit() {
 		pidStore.disable();
+		pidStore2.disable();
 		cubeLift.getSensorCollection();
 		compressor.start(); //Start compressor
 		driver.addDefault(Tim, Tim);//Add Tim's profile to driver chooser
@@ -95,6 +104,8 @@ public class Robot extends IterativeRobot {
 		liftPID.setSetpoint(0);
 		liftPID.setOutputRange(-0.7, 0.7);
 		liftEnc.zero();
+		armPID.setSetpoint(0);
+		armPID.setOutputRange(-0.5,  0.5);
 	}
 	@Override
 	public void autonomousInit() {
@@ -273,15 +284,57 @@ public class Robot extends IterativeRobot {
 			}
 		} else {
 			
-			if(joy2.getRawButton(1)) {
-				cubeLift.set(-liftPID.get());
+			if(doOnce) {
+				liftPID.enable();
+				doOnce = false;
+			}
+			if(Math.abs(joy2.getRawAxis(1)) >= 0.08) { //Threshhold for cube lift speed
+				liftPID.reset();
+				cubeLift.set(joy2.getRawAxis(1));
+				liftPID.setSetpoint(liftEnc.get());
+				doOnce = true;
+			} else if(joy2.getRawButton(1)) {
+				liftPID.reset();
+				doOnce = true;
+				liftToggle = !liftToggle;
+				if(liftToggle) {
+					liftPID.setSetpoint(scaleNeutralHeight);
+				} else {
+					liftPID.setSetpoint(0);
+				}
+				while(joy2.getRawButton(1)) {}
 			} else {
-				cubeLift.set(0);
+				cubeLift.set(-liftPID.get());
 			}
 			
-			if(joy2.getRawButton(2)) {
-				liftEnc.zero();
-				liftPID.reset();
+			if(armEnable) {
+				armPID.enable();
+				armEnable = false;
+			}
+			if(Math.abs(joy2.getRawAxis(5)) >= 0.08) {
+				armPID.reset();
+				arm.set(joy2.getRawAxis(5));
+				armPID.setSetpoint(armEnc.get());
+				armEnable = true;
+			} else {
+				arm.set(armPID.get());
+			}
+			
+			if(Math.abs(joy2.getRawAxis(2)) >= 0.25) { //If the left trigger is pulled...
+				leftHolder.set(0.75); //Input cube
+				rightHolder.set(-0.75);
+			} else if(Math.abs(joy2.getRawAxis(3)) >= 0.25) { //If right trigger is pulled...
+				leftHolder.set(-0.75);// Output cube
+				rightHolder.set(0.75);
+			} else if(joy2.getRawButton(5)) { //If left bumper is pressed...
+				leftHolder.set(-0.75); // Rotate cube
+				rightHolder.set(-0.75);
+			} else if(joy2.getRawButton(6)) { //If right bumper is pressed...
+				leftHolder.set(0.75); // Rotate cube
+				rightHolder.set(0.75);
+			} else { //If nothing is pressed...
+				leftHolder.set(0); //Stop cube motors
+				rightHolder.set(0);
 			}
 		}
 		if(joy2.getRawButton(10)) {
