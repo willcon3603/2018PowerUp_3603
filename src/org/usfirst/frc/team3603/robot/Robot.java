@@ -207,27 +207,26 @@ public class Robot extends IterativeRobot {
 		 ************************/
 		
 		if(manString == Troy) {
-			if(doOnce) {
-				liftPID.enable();
-				doOnce = false;
-			}
-			if(Math.abs(joy2.getRawAxis(1)) >= 0.08) { //Threshhold for cube lift speed
-				liftPID.reset();
-				cubeLift.set(joy2.getRawAxis(1));
-				liftPID.setSetpoint(liftEnc.get());
-				doOnce = true;
+			if(Math.abs(joy2.getRawAxis(1)) >= 0.08) { //If the left joystick is being moved...
+				liftPID.reset(); //Reset (delete previous values of) the PID
+				cubeLift.set(joy2.getRawAxis(1)); //Set the lift speed to the joystick
+				liftPID.setSetpoint(liftEnc.get()); //Read the new position so when the joystick is released, the position will be held
+				doOnce = true; //Enable the PID 
 			} else if(joy2.getRawButton(1)) {
-				liftPID.reset();
-				doOnce = true;
-				liftToggle = !liftToggle;
-				if(liftToggle) {
-					liftPID.setSetpoint(scaleNeutralHeight);
-				} else {
-					liftPID.setSetpoint(0);
+				liftPID.reset(); //Reset (delete previous values of) the PID
+				doOnce = true; //Enable the PID
+				liftToggle = !liftToggle; //Toggle if the lift should be up or down
+				if(liftToggle) { //If true...
+					liftPID.setSetpoint(scaleNeutralHeight); //Raise the lift
+				} else { //If false...
+					liftPID.setSetpoint(0); //Lower the lift
 				}
-				while(joy2.getRawButton(1)) {}
-			} else {
-				cubeLift.set(-liftPID.get());
+				while(joy2.getRawButton(1)) {} //Wait for the button to be released
+			} else if(doOnce) { //If the enable boolean is true...
+				liftPID.enable(); //Enable PID
+				doOnce = false; //Set the boolean to false so it won't enable again
+			} else { //If nothing is being pressed...
+				cubeLift.set(-liftPID.get()); //Set the cube lift speed to the opposite of the PID value
 			}
 			
 			
@@ -247,26 +246,25 @@ public class Robot extends IterativeRobot {
 				leftHolder.set(0); //Stop cube motors
 				rightHolder.set(0);
 			}
-		} else if(manString == Collin){
-			if(doOnce) {
-				liftPID.enable();
-				doOnce = false;
-			}
-			if(Math.abs(joy2.getRawAxis(1)) >= 0.08) { //Threshhold for cube lift speed
-				liftPID.reset();
-				cubeLift.set(joy2.getRawAxis(1));
-				liftPID.setSetpoint(liftEnc.get());
-				doOnce = true;
+		} else if(manString == Collin){ //Collin's profile
+			if(Math.abs(joy2.getRawAxis(1)) >= 0.08) { //Iff the left joystick is moved...
+				liftPID.reset(); //Reset (delete previous values of) the PID
+				cubeLift.set(joy2.getRawAxis(1)); //Set the lift speed to the joystick
+				liftPID.setSetpoint(liftEnc.get()); //Read the new position so when the joystick is released, the position will be held
+				doOnce = true; //Enable the PID
 			} else if(joy2.getPOV() == 0) { //If the D-pad is up...
-				doOnce = true;
-				liftPID.reset();
-				liftPID.setSetpoint(scaleNeutralHeight);
+				doOnce = true; //Enable the PID
+				liftPID.reset(); //Reset the PID
+				liftPID.setSetpoint(scaleNeutralHeight); //Set the lift to scale neutral height
 			} else if(joy2.getPOV() == 180) { //If the D-pad is down...
-				doOnce = true;
-				liftPID.reset();
-				liftPID.setSetpoint(0);
-			} else {
-				cubeLift.set(-liftPID.get());
+				doOnce = true; //Enable the PID
+				liftPID.reset(); //Reset the PID
+				liftPID.setSetpoint(0); //Set the setpoint to ground
+			} else if(doOnce) { //If the enable boolean is true...
+				liftPID.enable(); //Enable the PID
+				doOnce = false; //Set the enable boolean to false
+			} else { //If nothing is being pressed...
+				cubeLift.set(-liftPID.get()); //Set the lift speed to the opposite of the PID speed
 			}
 			
 			if(Math.abs(joy2.getRawAxis(5)) >= 0.05) { //Variable input/output cube
@@ -282,7 +280,14 @@ public class Robot extends IterativeRobot {
 				leftHolder.set(0);
 				rightHolder.set(0);
 			}
-		} else {
+		} else { //Connor's profile/ EXPERIMENTAL
+			/**
+			 * If you need to test the cube arm thing, this
+			 * profile is the once with the code. If the
+			 * PID turns the wrong way, put a negative in
+			 * line 325. It's also marked with a comment
+			 * where it should go.
+			 */
 			
 			if(doOnce) {
 				liftPID.enable();
@@ -317,7 +322,7 @@ public class Robot extends IterativeRobot {
 				armPID.setSetpoint(armEnc.get());
 				armEnable = true;
 			} else {
-				arm.set(armPID.get());
+				arm.set(/*PUT A NEGATIVE AFTER THIS COMMENT IF THE ARM IS BACKWARDS->*/armPID.get());
 			}
 			
 			if(Math.abs(joy2.getRawAxis(2)) >= 0.25) { //If the left trigger is pulled...
