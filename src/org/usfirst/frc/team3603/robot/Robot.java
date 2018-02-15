@@ -1,8 +1,8 @@
 package org.usfirst.frc.team3603.robot;
 
 import com.ctre.phoenix.motorcontrol.can.WPI_TalonSRX;
+import com.kauailabs.navx.frc.AHRS;
 
-import edu.wpi.first.wpilibj.ADXRS450_Gyro;
 import edu.wpi.first.wpilibj.CameraServer;
 import edu.wpi.first.wpilibj.Compressor;
 import edu.wpi.first.wpilibj.CounterBase.EncodingType;
@@ -10,9 +10,11 @@ import edu.wpi.first.wpilibj.DoubleSolenoid;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Encoder;
 import edu.wpi.first.wpilibj.GenericHID.RumbleType;
+import edu.wpi.first.wpilibj.I2C.Port;
 import edu.wpi.first.wpilibj.IterativeRobot;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.PIDController;
+import edu.wpi.first.wpilibj.Servo;
 import edu.wpi.first.wpilibj.SpeedControllerGroup;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
@@ -51,6 +53,7 @@ public class Robot extends IterativeRobot {
 	WPI_TalonSRX rightHolder = new WPI_TalonSRX(8);//Rightholder speedcontroller
 	WPI_TalonSRX cubeLift = new WPI_TalonSRX(3); //Cube lift speed controller
 	WPI_TalonSRX arm = new WPI_TalonSRX(7);
+	Servo release = new Servo(0);
 	
 	Compressor compressor = new Compressor();
 	DoubleSolenoid omni = new DoubleSolenoid(0, 1); //Omni solenoid
@@ -58,7 +61,6 @@ public class Robot extends IterativeRobot {
 	
 	Joystick joy1 = new Joystick(0); //Large twist-axis joystick
 	Joystick joy2 = new Joystick(1); //Xbox controller
-	ADXRS450_Gyro gyro = new ADXRS450_Gyro(); //Gyro needs switched
 	MyEncoder liftEnc = new MyEncoder(cubeLift, false, 1.0); //Encoder for the cube lift
 	Encoder armEnc = new Encoder(0, 1, false, EncodingType.k2X);
 	WPI_TalonSRX pidStore = new WPI_TalonSRX(1);
@@ -67,6 +69,7 @@ public class Robot extends IterativeRobot {
 	PIDController armPID = new PIDController(0.05, 0, 0, armEnc, armStore);
 	PressureSensor pressure = new PressureSensor(0);
 	CameraServer camera = CameraServer.getInstance();
+	AHRS gyro = new AHRS(Port.kMXP);
 	//Encoder driveEnc = new Encoder(2, 2, true, EncodingType.k2X); //Encoder for distance driven
 	double mult = 1.0; //Multiplier for driveEnc TODO multiplier
 	
@@ -102,7 +105,6 @@ public class Robot extends IterativeRobot {
 		
 		mainDrive.setSafetyEnabled(false); //Disable safety
 		
-		liftPID.setSetpoint(0);
 		liftPID.setOutputRange(-0.7, 0.7);
 		liftEnc.zero();
 	}
@@ -132,6 +134,7 @@ public class Robot extends IterativeRobot {
 	}
 	@Override
 	public void autonomousPeriodic() {
+		release.set(0.5);
 		/*
 		switch(autonMode) {
 		case straight:
@@ -157,17 +160,17 @@ public class Robot extends IterativeRobot {
 	public void teleopPeriodic() {
 		driverString = driver.getSelected();
 		manString = man.getSelected();
-		
-		
+		release.set(0.5);
 		/*******************
 		 * DRIVER PROFILES *
 		 *******************/
 		
 		if(driverString == Tim) { //Tim profile
+			double sense = -0.5 * joy1.getRawAxis(3) + 0.5;
 			double y = Math.pow(joy1.getRawAxis(1), 1); //Double to store the joystick's y axis
 			double rot = -Math.pow(joy1.getRawAxis(2), 1)/2; //Double to store the joystick's x axis
 			if(Math.abs(y) >= 0.05 || Math.abs(rot) >= 0.05 && !joy1.getRawButton(1)) { //Thresholding function
-				mainDrive.arcadeDrive(y, rot); //Arcade drive with the joystick's axis
+				mainDrive.arcadeDrive(y * sense, rot * sense); //Arcade drive with the joystick's axis
 			} else {
 				mainDrive.arcadeDrive(0, 0); //Stop if value doesn't meet threshhold
 			}
@@ -176,6 +179,12 @@ public class Robot extends IterativeRobot {
 				omni.set(out);
 			} else {
 				omni.set(in);
+			}
+			
+			if(joy1.getRawButton(3)) { //Press and hold button 3 for transmission
+				shift.set(out);
+			} else {
+				shift.set(in);
 			}
 			
 		} else { //Spencer profile
