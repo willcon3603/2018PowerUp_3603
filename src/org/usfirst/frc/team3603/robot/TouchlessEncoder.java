@@ -23,6 +23,10 @@ public class TouchlessEncoder {
 		tracker.start();
 	}
 	
+	public boolean read() {
+		return input.get();
+	}
+	
 	public void reset() {
 		ticks = 0;
 	}

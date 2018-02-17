@@ -6,6 +6,8 @@ import com.kauailabs.navx.frc.AHRS;
 import edu.wpi.first.wpilibj.CameraServer;
 import edu.wpi.first.wpilibj.Compressor;
 import edu.wpi.first.wpilibj.CounterBase.EncodingType;
+import edu.wpi.first.wpilibj.DigitalInput;
+import edu.wpi.first.wpilibj.DigitalOutput;
 import edu.wpi.first.wpilibj.DoubleSolenoid;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Encoder;
@@ -22,17 +24,6 @@ import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
 public class Robot extends IterativeRobot {
-	
-	private static final String Tim = "Tim"; //String for Tim's profile
-	private static final String Troy = "Troy"; //String for Troy's profile
-	private static final String Spencer = "Spencer"; //String for Spencer's profile
-	private static final String Collin = "Collin"; //String for Collin's profile
-	private static final String Connor = "Connor";
-	
-	private String driverString; //String for chosen driver
-	private SendableChooser<String> driver = new SendableChooser<>(); //Driver chooser
-	private String manString; //String for manipulator
-	private SendableChooser<String> man = new SendableChooser<>(); //Manipulator chooser
 	
 	final static DoubleSolenoid.Value out = DoubleSolenoid.Value.kForward; //Piston out value
 	static final DoubleSolenoid.Value in = DoubleSolenoid.Value.kReverse; //Piston in value
@@ -52,142 +43,119 @@ public class Robot extends IterativeRobot {
 	
 	WPI_TalonSRX leftHolder = new WPI_TalonSRX(9);//Leftholder speedcontroller
 	WPI_TalonSRX rightHolder = new WPI_TalonSRX(8);//Rightholder speedcontroller
-	WPI_TalonSRX lift = new WPI_TalonSRX(3); //Cube lift speed controller
+	WPI_TalonSRX cubeLift = new WPI_TalonSRX(3); //Cube lift speed controller
 	WPI_TalonSRX arm = new WPI_TalonSRX(7);
 	Servo release = new Servo(0);
 	
 	Compressor compressor = new Compressor();
 	DoubleSolenoid omni = new DoubleSolenoid(0, 1); //Omni solenoid
 	DoubleSolenoid shift = new DoubleSolenoid(2, 3);//Transmission solenoid
-
-	AHRS gyro = new AHRS(Port.kMXP);
-	CameraServer camera = CameraServer.getInstance();
-	Encoder armEnc = new Encoder(0, 1, false, EncodingType.k2X);
+	
 	Joystick joy1 = new Joystick(0); //Large twist-axis joystick
 	Joystick joy2 = new Joystick(1); //Xbox controller
-	MyEncoder liftEnc = new MyEncoder(lift, false, 1.0); //Encoder for the cube lift
-	PressureSensor pressure = new PressureSensor(0);
-	TouchlessEncoder driveEnc = new TouchlessEncoder(2, (4*Math.PI)/60);
-	
+	MyEncoder liftEnc = new MyEncoder(cubeLift, false, 1.0); //Encoder for the cube lift
+	double mult = (4*Math.PI)/60;
+	TouchlessEncoder driveEnc = new TouchlessEncoder(2, mult);
+	Encoder armEnc = new Encoder(0, 1, false, EncodingType.k2X);
 	WPI_TalonSRX pidStore = new WPI_TalonSRX(1);
+	WPI_TalonSRX armStore = new WPI_TalonSRX(2);
 	PIDController liftPID = new PIDController(0.001, 0, 0, liftEnc, pidStore);
-	PIDController armPID = new PIDController(0.05, 0, 0, armEnc, pidStore);
-	PIDController strPID = new PIDController(0.15, 0, 0, gyro, pidStore);
+	PIDController armPID = new PIDController(0.05, 0, 0, armEnc, armStore);
+	PressureSensor pressure = new PressureSensor(0);
+	CameraServer camera = CameraServer.getInstance();
+	AHRS gyro = new AHRS(Port.kMXP);
+	PIDController strPID = new PIDController(0.15, 0, 0, gyro, armStore);
+	
+	DigitalInput slot1 = new DigitalInput(3);
+	DigitalInput slot2 = new DigitalInput(4);
+	DigitalInput slot3 = new DigitalInput(5);
+	int position;
 	
 	DriverStation matchInfo = DriverStation.getInstance(); //Object to get switch/scale colors
 	
 	String sides; //A string to store the switch and scale colors
-	int position; //An integer to store the starting position
 	AutonType autonMode; //Enumerator for the autonomous mode
 	int step;
 	boolean doOnce = true;
 	boolean liftToggle = false;
 	double time;
 	final static double scaleNeutralHeight = 20000;
-	final static double switchHeight = 10000; //TODO change this
+	final static double switchHeight = 3000;
 	
 	@Override
 	public void robotInit() {
 		pidStore.disable();
-		lift.getSensorCollection();
+		cubeLift.getSensorCollection();
 		camera.startAutomaticCapture("cam0", 0);
 		compressor.start(); //Start compressor
-		driver.addDefault(Tim, Tim);//Add Tim's profile to driver chooser
-		driver.addObject(Spencer, Spencer); //Add Spencer's profile to driver chooser
-		
-		man.addDefault(Troy, Troy);//Add Troy's profile to manip. chooser
-		man.addObject(Collin, Collin); //Add Collin's profile to manip. chooser
-		man.addObject(Connor, Connor);
-		
-		//Put choosers on SmartDashboard
-		SmartDashboard.putData("Drivers", driver);
-		SmartDashboard.putData("Manipulators", man);
 		
 		mainDrive.setSafetyEnabled(false); //Disable safety
 		
 		liftPID.setOutputRange(-0.7, 0.7);
 		armPID.setOutputRange(-0.5, 0.5);
-		strPID.setSetpoint(0);
 		liftEnc.zero();
 	}
-	
 	@Override
 	public void autonomousInit() {
+		strPID.setSetpoint(0);
+		driveEnc.reset();
 		step = 1; //set the auton step to step 1
 		sides = matchInfo.getGameSpecificMessage(); //Get the switch and scale colors
 		sides = "RRR";
-		position = matchInfo.getLocation(); //Get the robot's position
-		position = 1;
-		if(position == 1) {//TODO
+		
+		if(slot1.get()) {
+			position = 1;
+		} else if(slot2.get()) {
+			position = 2;
+		} else if(slot3.get()) {
+			position = 3;
+		} else {
+			position = 4;
+		}
+		if(position == 1) {
 			if(sides == "LLL") {
 				autonMode = AutonType.leftSwitch;
-				liftPID.setSetpoint(10000);
-				armPID.setSetpoint(75);
-				armPID.enable();
-				liftPID.enable();
-				strPID.enable();
+				liftPID.setSetpoint(switchHeight);
 			}
 			if(sides == "RRR") {
 				autonMode = AutonType.straight;
-				strPID.enable();
 			}
 			if(sides == "LRL") {
 				autonMode = AutonType.leftSwitch;
-				liftPID.setSetpoint(10000);
-				armPID.setSetpoint(75);
-				armPID.enable();
-				liftPID.enable();
-				strPID.enable();
+				liftPID.setSetpoint(switchHeight);
 			}
 			if(sides == "RLR") {
 				autonMode = AutonType.leftScale;
-				liftPID.setSetpoint(15000);
-				armPID.setSetpoint(75);
-				strPID.enable();
-				armPID.enable();
-				liftPID.enable();
+				liftPID.setSetpoint(scaleNeutralHeight);
 			}
-		} else if(position == 2) {
+		} else if(position == 2) { //TODO
 			autonMode = AutonType.straight;
 		} else if(position == 3) {
 			if(sides == "LLL") {
 				autonMode = AutonType.straight;
-				strPID.enable();
 			}
 			if(sides == "RRR") {
 				autonMode = AutonType.rightSwitch;
-				liftPID.setSetpoint(10000);
-				armPID.setSetpoint(75);
-				armPID.enable();
-				liftPID.enable();
-				strPID.enable();
+				liftPID.setSetpoint(switchHeight);
 			}
 			if(sides == "LRL") {
 				autonMode = AutonType.rightScale;
-				liftPID.setSetpoint(15000);
-				armPID.setSetpoint(75);
-				strPID.enable();
-				armPID.enable();
-				liftPID.enable();
+				liftPID.setSetpoint(scaleNeutralHeight);
 			}
 			if(sides == "RLR") {
 				autonMode = AutonType.rightSwitch;
-				liftPID.setSetpoint(10000);
-				armPID.setSetpoint(75);
-				armPID.enable();
-				liftPID.enable();
-				strPID.enable();
+				liftPID.setSetpoint(switchHeight);
 			}
+		} else if(position == 4) {
+			autonMode = AutonType.straight;
 		}
-
-		strPID.setSetpoint(0);
-		driveEnc.reset();
+		
+		autonMode = AutonType.leftMiddle;
+		
 		liftPID.enable();
 		armPID.enable();
 		armEnc.reset();
-		autonMode = AutonType.leftScale; //TODO auton mode
 	}
-	
 	@Override
 	public void autonomousPeriodic() {
 		release.set(0.5);
@@ -210,199 +178,116 @@ public class Robot extends IterativeRobot {
 		case rightScale:
 			rightScale(); //Go to the right side of the scale
 			break;
+		case rightMiddle:
+			rightMiddle();
+			break;
+		case leftMiddle:
+			leftMiddle();
+			break;
 		}
 		
 	}
 	
 	@Override
 	public void teleopPeriodic() {
-		driverString = driver.getSelected();
-		manString = man.getSelected();
 		release.set(0.5);
 		
-		/*******************
-		 * DRIVER PROFILES *
-		 *******************/
+		/**********
+		 * DRIVER *
+		 **********/
 		
-		if(joy1.getRawButton(12)) {
-			driveEnc.reset();
+		double sense = -0.5 * joy1.getRawAxis(3) + 0.5;
+		double y = Math.pow(joy1.getRawAxis(1), 1); //Double to store the joystick's y axis
+		double rot = -Math.pow(joy1.getRawAxis(2), 1)/1.25; //Double to store the joystick's x axis
+		if(Math.abs(y) >= 0.05 || Math.abs(rot) >= 0.05 && !joy1.getRawButton(1)) { //Thresholding function
+			mainDrive.arcadeDrive(y * sense, rot * sense); //Arcade drive with the joystick's axis
+		} else {
+			mainDrive.arcadeDrive(0, 0); //Stop if value doesn't meet threshhold
 		}
 		
-		if(driverString == Tim) { //Tim profile
-			double sense = -0.5 * joy1.getRawAxis(3) + 0.5;
-			double y = Math.pow(joy1.getRawAxis(1), 1); //Double to store the joystick's y axis
-			double rot = -Math.pow(joy1.getRawAxis(2), 1)/2; //Double to store the joystick's x axis
-			if(Math.abs(y) >= 0.05 || Math.abs(rot) >= 0.05 && !joy1.getRawButton(1)) { //Thresholding function
-				mainDrive.arcadeDrive(y * sense, rot * sense); //Arcade drive with the joystick's axis
-			} else {
-				mainDrive.arcadeDrive(0, 0); //Stop if value doesn't meet threshhold
-			}
-			
-			if(joy1.getRawButton(2)) { //Press and hold button 2 for omni wheels
-				omni.set(out);
-			} else {
-				omni.set(in);
-			}
-			
-			if(joy1.getRawButton(3)) { //Press and hold button 3 for transmission
-				shift.set(out);
-			} else {
-				shift.set(in);
-			}
-			
-		} else { //Spencer profile
-			double y = Math.pow(joy1.getRawAxis(1), 3); //Double to store the joystick's y axis
-			double rot = -Math.pow(joy1.getRawAxis(2), 3)/1.5; //Double to store the joystick's x axis
-			if(Math.abs(y) >= 0.05 || Math.abs(rot) >= 0.05 && !joy1.getRawButton(1)) { //Thresholding function
-				mainDrive.arcadeDrive(y, rot); //Arcade drive with the joystick's axis
-			} else {
-				mainDrive.arcadeDrive(0, 0);
-			}
-			
-			if(joy1.getRawButton(2)) { //Press and hold button 2 for omni wheels
-				omni.set(out);
-			} else {
-				omni.set(in);
-			}
-			
-			if(joy1.getRawButton(3)) { //Press and hold button 3 for transmission
-				shift.set(out);
-			} else {
-				shift.set(in);
-			}
+		if(joy1.getRawButton(2)) { //Press and hold button 2 for omni wheels
+			omni.set(out);
+		} else {
+			omni.set(in);
+		}
+		
+		if(joy1.getRawButton(3)) { //Press and hold button 3 for transmission
+			shift.set(out);
+		} else {
+			shift.set(in);
 		}
 		
 		
-		/************************
-		 * MANIPULATOR PROFILES *
-		 ************************/
+		/***************
+		 * MANIPULATOR *
+		 ***************/
 		
-		if(manString == Troy) {
-			if(liftEnc.get() >= 20000) {
-				joy2.setRumble(RumbleType.kLeftRumble, 1);
-				joy2.setRumble(RumbleType.kRightRumble, 1);
-			} else {
-				joy2.setRumble(RumbleType.kLeftRumble, 0);
-				joy2.setRumble(RumbleType.kRightRumble, 0);
-			}
-			
-			if(doOnce) {
-				liftPID.enable();
-				doOnce = false;
-			}
-			if(Math.abs(joy2.getRawAxis(1)) >= 0.1) { //Threshhold for cube lift speed
-				liftPID.reset();
-				lift.set(joy2.getRawAxis(1));
-				liftPID.setSetpoint(liftEnc.get());
-				doOnce = true;
-			} else if(joy2.getRawButtonReleased(1)) {
-				liftPID.reset();
-				doOnce = true;
-				liftToggle = !liftToggle;
-				if(liftToggle) {
-					liftPID.setSetpoint(scaleNeutralHeight);
-				} else {
-					liftPID.setSetpoint(0);
-				}
-			} else {
-				lift.set(-liftPID.get());
-			}
-			
-			if(Math.abs(joy2.getRawAxis(5)) >= 0.1) { //Threshhold for cube lift speed
-				arm.set(joy2.getRawAxis(5));
-				armPID.setSetpoint(armEnc.get());
-				armPID.enable();
-			} else {
-				arm.set(armPID.get());
-			}
-			
-			
-			if(Math.abs(joy2.getRawAxis(2)) >= 0.25) { //If the left trigger is pulled...
-				leftHolder.set(0.85); //Input cube
-				rightHolder.set(-0.85);
-			} else if(Math.abs(joy2.getRawAxis(3)) >= 0.25) { //If right trigger is pulled...
-				leftHolder.set(-0.75);// Output cube
-				rightHolder.set(0.75);
-			} else if(joy2.getRawButton(5)) { //If left bumper is pressed...
-				leftHolder.set(-0.75); // Rotate cube
-				rightHolder.set(-0.75);
-			} else if(joy2.getRawButton(6)) { //If right bumper is pressed...
-				leftHolder.set(0.75); // Rotate cube
-				rightHolder.set(0.75);
-			} else { //If nothing is pressed...
-				leftHolder.set(0); //Stop cube motors
-				rightHolder.set(0);
-			}
-		} else if(manString == Collin){
-			if(liftEnc.get() >= 20000) {
-				joy2.setRumble(RumbleType.kLeftRumble, 1);
-				joy2.setRumble(RumbleType.kRightRumble, 1);
-			} else {
-				joy2.setRumble(RumbleType.kLeftRumble, 0);
-				joy2.setRumble(RumbleType.kRightRumble, 0);
-			}
-			
-			if(doOnce) {
-				liftPID.enable();
-				doOnce = false;
-			}
-			if(Math.abs(joy2.getRawAxis(1)) >= 0.08) { //Threshhold for cube lift speed
-				liftPID.reset();
-				lift.set(joy2.getRawAxis(1));
-				liftPID.setSetpoint(liftEnc.get());
-				doOnce = true;
-			} else if(joy2.getPOV() == 0) { //If the D-pad is up...
-				doOnce = true;
-				liftPID.reset();
+		if(liftEnc.get() >= 20000) {
+			joy2.setRumble(RumbleType.kLeftRumble, 0.25);
+			joy2.setRumble(RumbleType.kRightRumble, 0.25);
+		} else {
+			joy2.setRumble(RumbleType.kLeftRumble, 0);
+			joy2.setRumble(RumbleType.kRightRumble, 0);
+		}
+		
+		if(doOnce) {
+			liftPID.enable();
+			doOnce = false;
+		}
+		if(Math.abs(joy2.getRawAxis(1)) >= 0.1) { //Threshhold for cube lift speed
+			liftPID.reset();
+			cubeLift.set(joy2.getRawAxis(1));
+			liftPID.setSetpoint(liftEnc.get());
+			doOnce = true;
+		} else if(joy2.getRawButtonReleased(1)) {
+			liftPID.reset();
+			doOnce = true;
+			liftToggle = !liftToggle;
+			if(liftToggle) {
 				liftPID.setSetpoint(scaleNeutralHeight);
-			} else if(joy2.getPOV() == 180) { //If the D-pad is down...
-				doOnce = true;
-				liftPID.reset();
-				liftPID.setSetpoint(0);
 			} else {
-				lift.set(-liftPID.get());
-			}
-			
-			if(Math.abs(joy2.getRawAxis(5)) >= 0.05) { //Variable input/output cube
-				leftHolder.set(joy2.getRawAxis(5));
-				rightHolder.set(-joy2.getRawAxis(5));
-			} else if(Math.abs(joy2.getRawAxis(2)) >= 0.05) { //Variable rotate cube left
-				leftHolder.set(joy2.getRawAxis(2));
-				rightHolder.set(joy2.getRawAxis(2));
-			} else if(Math.abs(joy2.getRawAxis(3)) >= 0.05) { //Variable rotate cube right
-				leftHolder.set(-joy2.getRawAxis(3));
-				rightHolder.set(-joy2.getRawAxis(3));
-			} else { //Else, stop
-				leftHolder.set(0);
-				rightHolder.set(0);
+				liftPID.setSetpoint(0);
 			}
 		} else {
-			
-			if(joy2.getRawButton(1)) {
-				lift.set(-liftPID.get());
-			} else {
-				lift.set(0);
-			}
-			
-			if(joy2.getRawButton(2)) {
-				liftEnc.zero();
-				liftPID.reset();
-			}
+			cubeLift.set(-liftPID.get());
 		}
-		if(joy2.getRawButton(10)) {
-			liftEnc.zero();
-			liftPID.reset();
-			armEnc.reset();
+		
+		if(Math.abs(joy2.getRawAxis(5)) >= 0.1) { //Threshhold for cube lift speed
+			arm.set(joy2.getRawAxis(5));
+			armPID.setSetpoint(armEnc.get());
+			armPID.enable();
+		} else {
+			arm.set(armPID.get());
 		}
+		
+		
+		if(Math.abs(joy2.getRawAxis(2)) >= 0.25) { //If the left trigger is pulled...
+			leftHolder.set(0.85); //Input cube
+			rightHolder.set(0.85);
+		} else if(Math.abs(joy2.getRawAxis(3)) >= 0.25) { //If right trigger is pulled...
+			leftHolder.set(-0.75);// Output cube
+			rightHolder.set(-0.75);
+		} else if(joy2.getRawButton(5)) { //If left bumper is pressed...
+			leftHolder.set(-0.75); // Rotate cube
+			rightHolder.set(0.75);
+		} else if(joy2.getRawButton(6)) { //If right bumper is pressed...
+			leftHolder.set(0.75); // Rotate cube
+			rightHolder.set(-0.75);
+		} else if(joy2.getRawButton(4)){ //If nothing is pressed...
+			leftHolder.set(-0.33);// Output cube
+			rightHolder.set(-0.33);
+		} else {
+			leftHolder.set(0);
+			rightHolder.set(0);
+		}
+			
 		read();
 	}
 	
 	void read() {
-		SmartDashboard.putNumber("Drive distance", liftEnc.get());
-		SmartDashboard.putNumber("PID", liftPID.get());
-		SmartDashboard.putNumber("Motor", lift.get());
-		SmartDashboard.putNumber("POV", joy2.getPOV());
-		SmartDashboard.putNumber("COntroller", joy2.getRawAxis(1));
+		SmartDashboard.putNumber("Lift encoder", liftEnc.get());
+		SmartDashboard.putNumber("Lift PID", liftPID.get());
+		SmartDashboard.putNumber("Lift speed", cubeLift.get());
 		if(pressure.get() >= 30) {
 			SmartDashboard.putBoolean("usable pressure", true);
 		} else {
@@ -411,12 +296,18 @@ public class Robot extends IterativeRobot {
 		SmartDashboard.putNumber("Pressure", pressure.get());
 		SmartDashboard.putNumber("Arm Encoder", armEnc.get());
 		SmartDashboard.putNumber("Arm PID", armPID.get());
-		SmartDashboard.putNumber("Axis 5", joy2.getRawAxis(5));
-		SmartDashboard.putBoolean("g", driveEnc.g());
+		SmartDashboard.putNumber("Arm speed", arm.get());
 		SmartDashboard.putNumber("STRAIGHT PID", strPID.get());
 		SmartDashboard.putNumber("Gyro", gyro.getAngle());
-		SmartDashboard.putNumber("Setpoint", liftPID.getSetpoint());
-		SmartDashboard.putNumber("Touchless ticks", driveEnc.get());
+		SmartDashboard.putNumber("Drive distance", driveEnc.get());
+		
+		SmartDashboard.putBoolean("Slot 1", slot1.get());
+		SmartDashboard.putBoolean("Slot 2", slot2.get());
+		SmartDashboard.putBoolean("Slot 3", slot3.get());
+		
+		SmartDashboard.putNumber("Status", (driveEnc.read() ? 1 : 0));
+		
+		SmartDashboard.putString("results", matchInfo.getGameSpecificMessage());
 	}
 	
 	@Override
@@ -424,26 +315,150 @@ public class Robot extends IterativeRobot {
 	}
 	
 	enum AutonType {
-		rightScale, leftScale, rightSwitch, leftSwitch, straight
+		rightScale, leftScale, rightSwitch, leftSwitch, straight, rightMiddle, leftMiddle
+	}
+	
+	void leftMiddle() {
+		switch(step) {
+		case 1:
+			liftPID.setSetpoint(10000);
+			armPID.setSetpoint(75);
+			armPID.enable();
+			liftPID.enable();
+			strPID.enable();
+			if(driveEnc.get() < 10) {
+				mainDrive.arcadeDrive(-0.75, -strPID.get());
+			} else {
+				mainDrive.arcadeDrive(0, 0);
+				step = 2;
+			}
+			break;
+		case 2:
+			if(gyro.getAngle() > -60) {
+				mainDrive.arcadeDrive(0, 0.4);
+			} else {
+				mainDrive.arcadeDrive(0, 0);
+				strPID.setSetpoint(-60);
+				strPID.enable();
+				driveEnc.reset();
+				step = 3;
+			}
+			break;
+		case 3:
+			cubeLift.set(-liftPID.get());
+			arm.set(armPID.get());
+			if(driveEnc.get() < 144) {
+				mainDrive.arcadeDrive(-0.75, -strPID.get());
+			} else {
+				mainDrive.arcadeDrive(0, 0);
+				step = 4;
+			}
+			break;
+		case 4:
+			cubeLift.set(-liftPID.get());
+			arm.set(armPID.get());
+			if(gyro.getAngle() < 0) {
+				mainDrive.arcadeDrive(0, -0.4);
+			} else {
+				mainDrive.arcadeDrive(0, 0);
+				step = 5;
+			}
+			break;
+		case 5:
+			cubeLift.set(-liftPID.get());
+			arm.set(armPID.get());
+			leftHolder.set(-0.5);
+			rightHolder.set(-0.5);
+			break;
+		}
+	}
+	
+	void rightMiddle() {
+		strPID.enable();
+		shift.set(out);
+		switch(step) {
+		case 1:
+			liftPID.setSetpoint(10000);
+			armPID.setSetpoint(75);
+			armPID.enable();
+			liftPID.enable();
+			cubeLift.set(-liftPID.get());
+			arm.set(armPID.get());
+			if(driveEnc.get() < 83) {
+				mainDrive.arcadeDrive(-0.75, -strPID.get());
+			} else {
+				mainDrive.arcadeDrive(0, 0);
+				step = 2;
+			}
+			break;
+		case 2:
+			cubeLift.set(-liftPID.get());
+			arm.set(armPID.get());
+			leftHolder.set(-0.5);
+			rightHolder.set(-0.5);
+			break;
+		}
 	}
 	
 	void straight() {
-		shift.set(out);
-		if(driveEnc.get() < 120) {
-			mainDrive.arcadeDrive(-0.75, -strPID.get());
+		double distance = driveEnc.get();
+		if(distance < 120) {
+			mainDrive.arcadeDrive(-0.75, 0);
 		} else {
 			mainDrive.arcadeDrive(0, 0);
 		}
 	}
 	
 	void rightScale() {
-	}
-	
-	void leftSwitch() {
+		strPID.enable();
 		shift.set(out);
 		switch(step) {
 		case 1:
-			lift.set(-liftPID.get());
+			liftPID.setSetpoint(15000);
+			armPID.setSetpoint(75);
+			armPID.enable();
+			liftPID.enable();
+			cubeLift.set(-liftPID.get());
+			if(driveEnc.get() < 252) {
+				mainDrive.arcadeDrive(-0.75, -strPID.get());
+			} else {
+				mainDrive.arcadeDrive(0, 0);
+				step = 2;
+				liftPID.setSetpoint(24000);
+			}
+			break;
+		case 2:
+			cubeLift.set(-liftPID.get());
+			arm.set(armPID.get());
+			if(gyro.getAngle() > -35) {
+				mainDrive.arcadeDrive(0, 0.4);
+			} else {
+				step = 3;
+				driveEnc.reset();
+				mainDrive.arcadeDrive(0, 0);
+			}
+			break;
+		case 3:
+			cubeLift.set(-liftPID.get());
+			arm.set(armPID.get());
+			if(liftEnc.get() < 23000) {
+			} else {
+				leftHolder.set(-0.75);
+				rightHolder.set(-0.75);
+			}
+		}
+	}
+	
+	void leftSwitch() {
+		strPID.enable();
+		shift.set(out);
+		switch(step) {
+		case 1:
+			liftPID.setSetpoint(10000);
+			armPID.setSetpoint(75);
+			armPID.enable();
+			liftPID.enable();
+			cubeLift.set(-liftPID.get());
 			if(driveEnc.get() < 149) {
 				mainDrive.arcadeDrive(-0.75, -strPID.get());
 			} else {
@@ -452,7 +467,7 @@ public class Robot extends IterativeRobot {
 			}
 			break;
 		case 2:
-			lift.set(-liftPID.get());
+			cubeLift.set(-liftPID.get());
 			arm.set(armPID.get());
 			if(gyro.getAngle() < 80) {
 				mainDrive.arcadeDrive(0, -0.6);
@@ -463,7 +478,7 @@ public class Robot extends IterativeRobot {
 			}
 			break;
 		case 3:
-			lift.set(-liftPID.get());
+			cubeLift.set(-liftPID.get());
 			arm.set(armPID.get());
 			if(driveEnc.get() < 9) {
 				mainDrive.arcadeDrive(-0.5, 0);
@@ -474,7 +489,7 @@ public class Robot extends IterativeRobot {
 			}
 			break;
 		case 4:
-			lift.set(-liftPID.get());
+			cubeLift.set(-liftPID.get());
 			arm.set(armPID.get());
 			if(Math.abs(time - Timer.getMatchTime()) <= 3.0) {
 				leftHolder.set(-0.5);
@@ -488,23 +503,26 @@ public class Robot extends IterativeRobot {
 		}
 	}
 	
-	void leftScale() {//TODO
+	void leftScale() {
+		strPID.enable();
 		shift.set(out);
 		switch(step) {
 		case 1:
-			lift.set(-liftPID.get());
+			liftPID.setSetpoint(15000);
+			armPID.setSetpoint(75);
+			armPID.enable();
+			liftPID.enable();
+			cubeLift.set(-liftPID.get());
 			if(driveEnc.get() < 252) {
 				mainDrive.arcadeDrive(-0.75, -strPID.get());
 			} else {
 				mainDrive.arcadeDrive(0, 0);
 				step = 2;
-				liftPID.reset();
-				liftPID.enable();
-				liftPID.setSetpoint(20000);
+				liftPID.setSetpoint(24000);
 			}
 			break;
 		case 2:
-			lift.set(-liftPID.get());
+			cubeLift.set(-liftPID.get());
 			arm.set(armPID.get());
 			if(gyro.getAngle() < 35) {
 				mainDrive.arcadeDrive(0, -0.4);
@@ -515,12 +533,15 @@ public class Robot extends IterativeRobot {
 			}
 			break;
 		case 3:
-			lift.set(-liftPID.get());
+			cubeLift.set(-liftPID.get());
 			arm.set(armPID.get());
-			break;
+			if(liftEnc.get() < 23000) {
+			} else {
+				leftHolder.set(-0.75);
+				rightHolder.set(-0.75);
+			}
 		}
 	}
-	
 	void rightSwitch() {
 		strPID.enable();
 		shift.set(out);
@@ -530,7 +551,7 @@ public class Robot extends IterativeRobot {
 			armPID.setSetpoint(75);
 			armPID.enable();
 			liftPID.enable();
-			lift.set(-liftPID.get());
+			cubeLift.set(-liftPID.get());
 			if(driveEnc.get() < 149) {
 				mainDrive.arcadeDrive(-0.75, -strPID.get());
 			} else {
@@ -539,7 +560,7 @@ public class Robot extends IterativeRobot {
 			}
 			break;
 		case 2:
-			lift.set(-liftPID.get());
+			cubeLift.set(-liftPID.get());
 			arm.set(armPID.get());
 			if(gyro.getAngle() > -80) {
 				mainDrive.arcadeDrive(0, 0.6);
@@ -550,7 +571,7 @@ public class Robot extends IterativeRobot {
 			}
 			break;
 		case 3:
-			lift.set(-liftPID.get());
+			cubeLift.set(-liftPID.get());
 			arm.set(armPID.get());
 			if(driveEnc.get() < 9) {
 				mainDrive.arcadeDrive(-0.5, 0);
@@ -561,7 +582,7 @@ public class Robot extends IterativeRobot {
 			}
 			break;
 		case 4:
-			lift.set(-liftPID.get());
+			cubeLift.set(-liftPID.get());
 			arm.set(armPID.get());
 			if(Math.abs(time - Timer.getMatchTime()) <= 3.0) {
 				leftHolder.set(-0.5);
@@ -574,4 +595,6 @@ public class Robot extends IterativeRobot {
 			break;
 		}
 	}
+	
+	
 }
