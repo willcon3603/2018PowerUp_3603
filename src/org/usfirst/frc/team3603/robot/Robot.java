@@ -79,8 +79,10 @@ public class Robot extends IterativeRobot {
 	boolean doOnce = true;
 	boolean liftToggle = false;
 	double time;
-	final static double scaleNeutralHeight = 20000;
+	final static double scaleNeutralHeight = 20200;
 	final static double switchHeight = 3000;
+	
+	double rate = 0;
 	
 	@Override
 	public void robotInit() {
@@ -94,6 +96,23 @@ public class Robot extends IterativeRobot {
 		liftPID.setOutputRange(-0.7, 0.7);
 		armPID.setOutputRange(-0.5, 0.5);
 		liftEnc.zero();
+		
+		Thread thread = new Thread(() -> {
+			while(true) {
+				double d1 = driveEnc.get();
+				try {
+					Thread.sleep(500);
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				double d2 = driveEnc.get();
+				double distance = Math.abs(d2-d1)/12;
+				double time = 0.5;
+				rate = distance/time;
+			}
+		});
+		thread.start();
 	}
 	@Override
 	public void autonomousInit() {
@@ -119,6 +138,8 @@ public class Robot extends IterativeRobot {
 			sides = "RLR";
 			break;
 		}
+		
+		System.out.println(sides);
 		
 		if(slot1.get()) { //Logic to find the auton rotating switch position
 			position = 1;
@@ -253,15 +274,10 @@ public class Robot extends IterativeRobot {
 			cubeLift.set(joy2.getRawAxis(1));
 			liftPID.setSetpoint(liftEnc.get());
 			doOnce = true;
-		} else if(joy2.getRawButtonReleased(1)) {
+		} else if(joy2.getRawButton(1)) {
 			liftPID.reset();
 			doOnce = true;
-			liftToggle = !liftToggle;
-			if(liftToggle) {
-				liftPID.setSetpoint(scaleNeutralHeight);
-			} else {
-				liftPID.setSetpoint(0);
-			}
+			liftPID.setSetpoint(scaleNeutralHeight);
 		} else {
 			cubeLift.set(-liftPID.get());
 		}
@@ -279,8 +295,8 @@ public class Robot extends IterativeRobot {
 			leftHolder.set(0.85); //Input cube
 			rightHolder.set(0.85);
 		} else if(Math.abs(joy2.getRawAxis(3)) >= 0.25) { //If right trigger is pulled...
-			leftHolder.set(-0.75);// Output cube
-			rightHolder.set(-0.75);
+			leftHolder.set(-0.33);// Output cube
+			rightHolder.set(-0.33);
 		} else if(joy2.getRawButton(5)) { //If left bumper is pressed...
 			leftHolder.set(-0.75); // Rotate cube
 			rightHolder.set(0.75);
@@ -288,8 +304,8 @@ public class Robot extends IterativeRobot {
 			leftHolder.set(0.75); // Rotate cube
 			rightHolder.set(-0.75);
 		} else if(joy2.getRawButton(4)){ //If nothing is pressed...
-			leftHolder.set(-0.33);// Output cube
-			rightHolder.set(-0.33);
+			leftHolder.set(-0.75);// Output cube
+			rightHolder.set(-0.75);
 		} else {
 			leftHolder.set(0);
 			rightHolder.set(0);
@@ -299,6 +315,7 @@ public class Robot extends IterativeRobot {
 	}
 	
 	void read() {
+		SmartDashboard.putNumber("MPH", rate);
 		SmartDashboard.putNumber("Lift encoder", liftEnc.get());
 		SmartDashboard.putNumber("Lift PID", liftPID.get());
 		SmartDashboard.putNumber("Lift speed", cubeLift.get());
@@ -335,7 +352,7 @@ public class Robot extends IterativeRobot {
 	void leftMiddle() { //TODO make it faster
 		switch(step) {
 		case 1:
-			liftPID.setSetpoint(10000);
+			liftPID.setSetpoint(4000);
 			armPID.setSetpoint(75);
 			armPID.enable();
 			liftPID.enable();
@@ -408,16 +425,17 @@ public class Robot extends IterativeRobot {
 		case 2:
 			cubeLift.set(-liftPID.get());
 			arm.set(armPID.get());
-			leftHolder.set(-0.5);
-			rightHolder.set(-0.5);
+			leftHolder.set(-0.35);
+			rightHolder.set(-0.35);
 			break;
 		}
 	}
 	
 	void straight() {
 		double distance = driveEnc.get();
+		strPID.enable();
 		if(distance < 120) {
-			mainDrive.arcadeDrive(-0.75, 0);
+			mainDrive.arcadeDrive(-0.75, -strPID.get());
 		} else {
 			mainDrive.arcadeDrive(0, 0);
 		}
@@ -433,6 +451,7 @@ public class Robot extends IterativeRobot {
 			armPID.enable();
 			liftPID.enable();
 			cubeLift.set(-liftPID.get());
+			arm.set(armPID.get());
 			if(driveEnc.get() < 252) {
 				mainDrive.arcadeDrive(-0.75, -strPID.get());
 			} else {
