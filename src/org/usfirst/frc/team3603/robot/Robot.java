@@ -1,5 +1,7 @@
 package org.usfirst.frc.team3603.robot;
 
+import java.util.Random;
+
 import com.ctre.phoenix.motorcontrol.can.WPI_TalonSRX;
 import com.kauailabs.navx.frc.AHRS;
 
@@ -7,7 +9,6 @@ import edu.wpi.first.wpilibj.CameraServer;
 import edu.wpi.first.wpilibj.Compressor;
 import edu.wpi.first.wpilibj.CounterBase.EncodingType;
 import edu.wpi.first.wpilibj.DigitalInput;
-import edu.wpi.first.wpilibj.DigitalOutput;
 import edu.wpi.first.wpilibj.DoubleSolenoid;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Encoder;
@@ -20,7 +21,6 @@ import edu.wpi.first.wpilibj.Servo;
 import edu.wpi.first.wpilibj.SpeedControllerGroup;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
-import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
 public class Robot extends IterativeRobot {
@@ -99,11 +99,28 @@ public class Robot extends IterativeRobot {
 	public void autonomousInit() {
 		strPID.setSetpoint(0);
 		driveEnc.reset();
+		gyro.reset();
 		step = 1; //set the auton step to step 1
 		sides = matchInfo.getGameSpecificMessage(); //Get the switch and scale colors
-		sides = "RRR";
 		
-		if(slot1.get()) {
+		Random generator = new Random();
+		int randomScene = generator.nextInt(3);
+		switch(randomScene) {
+		case 0:
+			sides = "LLL";
+			break;
+		case 1:
+			sides = "RRR";
+			break;
+		case 2:
+			sides = "LRL";
+			break;
+		case 3:
+			sides = "RLR";
+			break;
+		}
+		
+		if(slot1.get()) { //Logic to find the auton rotating switch position
 			position = 1;
 		} else if(slot2.get()) {
 			position = 2;
@@ -112,45 +129,42 @@ public class Robot extends IterativeRobot {
 		} else {
 			position = 4;
 		}
+		
 		if(position == 1) {
 			if(sides == "LLL") {
 				autonMode = AutonType.leftSwitch;
 				liftPID.setSetpoint(switchHeight);
-			}
-			if(sides == "RRR") {
+			} else if(sides == "RRR") {
 				autonMode = AutonType.straight;
-			}
-			if(sides == "LRL") {
+			} else if(sides == "LRL") {
 				autonMode = AutonType.leftSwitch;
 				liftPID.setSetpoint(switchHeight);
-			}
-			if(sides == "RLR") {
+			} else if(sides == "RLR") {
 				autonMode = AutonType.leftScale;
 				liftPID.setSetpoint(scaleNeutralHeight);
 			}
-		} else if(position == 2) { //TODO
-			autonMode = AutonType.straight;
+		} else if(position == 2) {
+			if(sides == "LLL" || sides == "LRL") {
+				autonMode = AutonType.leftMiddle;
+			} else if(sides == "RLR" || sides == "RRR") {
+				autonMode = AutonType.rightMiddle;
+			}
 		} else if(position == 3) {
 			if(sides == "LLL") {
 				autonMode = AutonType.straight;
-			}
-			if(sides == "RRR") {
+			} else if(sides == "RRR") {
 				autonMode = AutonType.rightSwitch;
 				liftPID.setSetpoint(switchHeight);
-			}
-			if(sides == "LRL") {
+			} else if(sides == "LRL") {
 				autonMode = AutonType.rightScale;
 				liftPID.setSetpoint(scaleNeutralHeight);
-			}
-			if(sides == "RLR") {
+			} else if(sides == "RLR") {
 				autonMode = AutonType.rightSwitch;
 				liftPID.setSetpoint(switchHeight);
 			}
 		} else if(position == 4) {
 			autonMode = AutonType.straight;
 		}
-		
-		autonMode = AutonType.leftMiddle;
 		
 		liftPID.enable();
 		armPID.enable();
@@ -179,10 +193,10 @@ public class Robot extends IterativeRobot {
 			rightScale(); //Go to the right side of the scale
 			break;
 		case rightMiddle:
-			rightMiddle();
+			rightMiddle(); //Go to the front right side of the switch
 			break;
 		case leftMiddle:
-			leftMiddle();
+			leftMiddle(); //Go to the front left side of the switch
 			break;
 		}
 		
@@ -318,7 +332,7 @@ public class Robot extends IterativeRobot {
 		rightScale, leftScale, rightSwitch, leftSwitch, straight, rightMiddle, leftMiddle
 	}
 	
-	void leftMiddle() {
+	void leftMiddle() { //TODO make it faster
 		switch(step) {
 		case 1:
 			liftPID.setSetpoint(10000);
@@ -446,6 +460,7 @@ public class Robot extends IterativeRobot {
 				leftHolder.set(-0.75);
 				rightHolder.set(-0.75);
 			}
+			break;
 		}
 	}
 	
@@ -540,6 +555,7 @@ public class Robot extends IterativeRobot {
 				leftHolder.set(-0.75);
 				rightHolder.set(-0.75);
 			}
+			break;
 		}
 	}
 	void rightSwitch() {
@@ -595,6 +611,4 @@ public class Robot extends IterativeRobot {
 			break;
 		}
 	}
-	
-	
 }
