@@ -104,8 +104,9 @@ public class Robot extends IterativeRobot {
 		step = 1; //set the auton step to step 1
 		sides = matchInfo.getGameSpecificMessage(); //Get the switch and scale colors
 		
+		/*
 		Random generator = new Random(); //This chunk is all code to randomize the field TODO delete this chunk BEFORE competition
-		int randomScene = generator.nextInt(3);
+		int randomScene = generator.nextInt(4);
 		switch(randomScene) {
 		case 0:
 			sides = "LLL";
@@ -120,6 +121,7 @@ public class Robot extends IterativeRobot {
 			sides = "RLR";
 			break;
 		}
+		*/
 		
 		if(slot1.get()) { //Logic to find the auton rotating switch position
 			position = 1;
