@@ -1,18 +1,14 @@
 package org.usfirst.frc.team3603.robot;
 
-import java.util.Random;
-
 import com.ctre.phoenix.motorcontrol.can.WPI_TalonSRX;
 import com.kauailabs.navx.frc.AHRS;
 
 import edu.wpi.first.wpilibj.CameraServer;
-import edu.wpi.first.wpilibj.Compressor;
 import edu.wpi.first.wpilibj.CounterBase.EncodingType;
 import edu.wpi.first.wpilibj.DigitalInput;
 import edu.wpi.first.wpilibj.DoubleSolenoid;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Encoder;
-import edu.wpi.first.wpilibj.GenericHID.RumbleType;
 import edu.wpi.first.wpilibj.I2C.Port;
 import edu.wpi.first.wpilibj.IterativeRobot;
 import edu.wpi.first.wpilibj.Joystick;
@@ -126,7 +122,6 @@ public class Robot extends IterativeRobot {
 			if(sides.equals(LLL)) {//If the switch and scale is on our side...
 				autonMode = AutonType.leftSwitch;//Set the auton mode to the left side of the switch
 				liftPID.setSetpoint(switchHeight);//Set the lift PID to switch height
-				System.out.println("ding!");
 			} else if(sides.equals(RRR)) {//If neither the switch or scale are on our side...
 				autonMode = AutonType.straight; //Cross the auto line
 			} else if(sides.equals(LRL)) {//If only the switch is on our side...
@@ -177,7 +172,6 @@ public class Robot extends IterativeRobot {
 		release.set(0.5);//Release the arm by raising the servo
 		
 		read();//Read from sensors and put the info on the smart dashboard
-		testlol();
 		if(timer.get() <= 8) {
 			switch(autonMode) {
 			case straight:
@@ -205,7 +199,6 @@ public class Robot extends IterativeRobot {
 		} else {
 			mainDrive.arcadeDrive(0, 0);
 		}
-		
 	}
 	
 	@Override
@@ -447,7 +440,7 @@ public class Robot extends IterativeRobot {
 		case 2://Step 2
 			cubeLift.set(-liftPID.get());//Activate the lift
 			arm.set(armPID.get());//Activate the arm
-			if(gyro.getAngle() > -35) {//If the current gyro angle is greater than -35 degrees
+			if(gyro.getAngle() > -45) {//If the current gyro angle is greater than -35 degrees
 				mainDrive.arcadeDrive(0, 0.4);//Turn left
 			} else {//Else
 				step = 3;//Set the step to 3
@@ -482,13 +475,14 @@ public class Robot extends IterativeRobot {
 			} else {//Else
 				mainDrive.arcadeDrive(0, 0);//Stop
 				step = 2;//go to step 2
+				strPID.disable();
 				liftPID.setSetpoint(24000);//Set the lift pid setpoint to max
 			}
 			break;
 		case 2://Step 2
 			cubeLift.set(-liftPID.get());//Activate the lift
 			arm.set(armPID.get());//Activate the arm
-			if(gyro.getAngle() < 35) {//If the current gyro angle is less than 35 degrees
+			if(gyro.getAngle() < 45) {//If the current gyro angle is less than 45 degrees
 				mainDrive.arcadeDrive(0, -0.4);//Turn right
 			} else {
 				step = 3;//go to step 3
@@ -522,13 +516,14 @@ public class Robot extends IterativeRobot {
 				mainDrive.arcadeDrive(-0.75, -strPID.get());//drive straight
 			} else {
 				mainDrive.arcadeDrive(0, 0);//stop
+				strPID.disable();
 				step = 2;//go to step 2
 			}
 			break;
 		case 2://step 2
 			cubeLift.set(-liftPID.get());//keep the lift in place
 			arm.set(armPID.get());//activate the arm
-			if(gyro.getAngle() < 80) {//if the current angle is less than 80 degrees
+			if(gyro.getAngle() < 90) {//if the current angle is less than 90 degrees
 				mainDrive.arcadeDrive(0, -0.6);//turn right
 			} else {//else
 				step = 3;//go to step 3
@@ -570,13 +565,14 @@ public class Robot extends IterativeRobot {
 				mainDrive.arcadeDrive(-0.75, -strPID.get());//drive straight
 			} else {//else
 				mainDrive.arcadeDrive(0, 0);//stop
+				strPID.disable();
 				step = 2;//go to step 2
 			}
 			break;
 		case 2://step 2
 			cubeLift.set(-liftPID.get());//keep the lift in place
 			arm.set(armPID.get());//activate the arm
-			if(gyro.getAngle() > -80) {//turn left until -80 degrees
+			if(gyro.getAngle() > -90) {//turn left until -90 degrees
 				mainDrive.arcadeDrive(0, 0.6);
 			} else {
 				step = 3;//go to step 3
