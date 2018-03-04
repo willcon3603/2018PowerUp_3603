@@ -13,6 +13,7 @@ import edu.wpi.first.wpilibj.I2C.Port;
 import edu.wpi.first.wpilibj.IterativeRobot;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.PIDController;
+import edu.wpi.first.wpilibj.PowerDistributionPanel;
 import edu.wpi.first.wpilibj.Servo;
 import edu.wpi.first.wpilibj.SpeedControllerGroup;
 import edu.wpi.first.wpilibj.Timer;
@@ -101,6 +102,7 @@ public class Robot extends IterativeRobot {
 		step = 1; //set the auton step to step 1
 		sides = matchInfo.getGameSpecificMessage(); //Get the switch and scale colors
 		System.out.println(matchInfo.getGameSpecificMessage());
+		
 		if(slot1.get()) { //Logic to find the auton rotating switch position
 			position = 1;
 		} else if(slot2.get()) {
@@ -172,7 +174,7 @@ public class Robot extends IterativeRobot {
 		release.set(0.5);//Release the arm by raising the servo
 		
 		read();//Read from sensors and put the info on the smart dashboard
-		if(timer.get() <= 8) {
+		if(timer.get() <= 15) {
 			switch(autonMode) {
 			case straight:
 				straight(); //Drive straight for auton
@@ -265,8 +267,8 @@ public class Robot extends IterativeRobot {
 			leftHolder.set(0.85); //Input cube TODO change these numbers if the intake speed is too fast/slow
 			rightHolder.set(0.85);
 		} else if(Math.abs(joy2.getRawAxis(3)) >= 0.25) { //If right trigger is pulled...
-			leftHolder.set(-0.33);//Soft spit TODO change these numbers if the grabber motors are too fast/slow
-			rightHolder.set(-0.33);
+			leftHolder.set(-0.45);//Soft spit TODO change these numbers if the grabber motors are too fast/slow
+			rightHolder.set(-0.45);
 		} else if(joy2.getRawButton(5)) { //If left bumper is pressed...
 			leftHolder.set(-0.75); // Rotate cube
 			rightHolder.set(0.75);
@@ -321,7 +323,7 @@ public class Robot extends IterativeRobot {
 	void leftMiddle() {
 		switch(step) {
 		case 1://Step one of the left auton
-			liftPID.setSetpoint(4000);//Set the liftPID to 4000
+			liftPID.setSetpoint(12000);//Set the liftPID to 4000
 			armPID.setSetpoint(75);//Set the armPID to 75
 			armPID.enable();//Enable the armPID
 			liftPID.enable();//Enable the liftPID
@@ -378,7 +380,7 @@ public class Robot extends IterativeRobot {
 		//shift.set(out);//Go into high gear
 		switch(step) {
 		case 1:
-			liftPID.setSetpoint(10000);//set the lift PID setpoint to 10000 TODO change this if it is too high/low
+			liftPID.setSetpoint(12000);//set the lift PID setpoint to 10000 TODO change this if it is too high/low
 			armPID.setSetpoint(75);//Set the armPID setpoint to 75
 			armPID.enable();//Enable the armPID
 			liftPID.enable();//Enable the liftPID
@@ -507,7 +509,7 @@ public class Robot extends IterativeRobot {
 		//shift.set(out);//go in to high gear
 		switch(step) {
 		case 1:
-			liftPID.setSetpoint(10000);//St the lift to 10000
+			liftPID.setSetpoint(12000);//St the lift to 10000
 			armPID.setSetpoint(75);//Set the armm to 75
 			armPID.enable();//enable the arm pid
 			liftPID.enable();//enable the lift pid
@@ -556,7 +558,7 @@ public class Robot extends IterativeRobot {
 		//shift.set(out);//go into high gear
 		switch(step) {
 		case 1://step 1
-			liftPID.setSetpoint(10000);//set the lift setpoint TODO change if too high/low
+			liftPID.setSetpoint(12000);//set the lift setpoint TODO change if too high/low
 			armPID.setSetpoint(75);//Set the arm setpoint
 			armPID.enable();//enable arm PID
 			liftPID.enable();//enable lift PID
