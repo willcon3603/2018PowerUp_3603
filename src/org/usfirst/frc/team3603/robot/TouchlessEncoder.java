@@ -12,7 +12,7 @@ public class TouchlessEncoder {
 		input = new DigitalInput(pin);
 		multiplier = mult;
 		Thread tracker = new Thread(() -> {
-			while(true) {
+			while(!Thread.interrupted()) {
 				current = input.get();
 				if(previous == false && current == true) {
 					ticks++;
