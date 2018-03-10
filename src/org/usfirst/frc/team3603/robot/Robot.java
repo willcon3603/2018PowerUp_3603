@@ -91,7 +91,6 @@ public class Robot extends IterativeRobot {
 		armStore.disable(); //Disable the PID store
 		cubeLift.getSensorCollection();
 		//compressor.start(); //Start compressor
-		
 		mainDrive.setSafetyEnabled(false); //Disable safety
 		
 		liftPID.setOutputRange(-0.7, 0.7); //Set the range of speeds for the lift PID
