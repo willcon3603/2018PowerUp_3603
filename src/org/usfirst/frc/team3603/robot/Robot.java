@@ -1,8 +1,15 @@
 package org.usfirst.frc.team3603.robot;
 
+import org.opencv.core.Mat;
+import org.opencv.imgproc.Imgproc;
+
 import com.ctre.phoenix.motorcontrol.can.WPI_TalonSRX;
 import com.kauailabs.navx.frc.AHRS;
 
+import edu.wpi.cscore.CvSink;
+import edu.wpi.cscore.CvSource;
+import edu.wpi.cscore.UsbCamera;
+import edu.wpi.cscore.VideoMode.PixelFormat;
 import edu.wpi.first.wpilibj.CameraServer;
 import edu.wpi.first.wpilibj.CounterBase.EncodingType;
 import edu.wpi.first.wpilibj.DigitalInput;
@@ -59,7 +66,6 @@ public class Robot extends IterativeRobot {
 	PIDController liftPID = new PIDController(0.001, 0, 0, liftEnc, pidStore); //PID controller for lift
 	PIDController armPID = new PIDController(0.05, 0, 0, armEnc, armStore); //PID controller for arm
 	PressureSensor pressure = new PressureSensor(0); //Pressure sensor
-	CameraServer camera = CameraServer.getInstance(); //Camera
 	AHRS gyro = new AHRS(Port.kMXP); //NavX
 	PIDController strPID = new PIDController(0.15, 0, 0, gyro, armStore); //PID controller for driving straight
 	
@@ -84,7 +90,6 @@ public class Robot extends IterativeRobot {
 		pidStore.disable();//Disable the PID store
 		armStore.disable(); //Disable the PID store
 		cubeLift.getSensorCollection();
-		camera.startAutomaticCapture("cam0", 0); //Start the camera server
 		//compressor.start(); //Start compressor
 		
 		mainDrive.setSafetyEnabled(false); //Disable safety
@@ -92,6 +97,22 @@ public class Robot extends IterativeRobot {
 		liftPID.setOutputRange(-0.7, 0.7); //Set the range of speeds for the lift PID
 		armPID.setOutputRange(-0.5, 0.5); //Set the range of speeds for the arm PID
 		liftEnc.zero(); //Zero out the lift encoder
+		new Thread(() -> {
+			UsbCamera camera = CameraServer.getInstance().startAutomaticCapture();
+			// camera.setResolution(320, 480);
+			// camera.setFPS(15); //
+			camera.setVideoMode(PixelFormat.kMJPEG, 4000, 3000, 15);
+
+			CvSink cvSink = CameraServer.getInstance().getVideo();
+			CvSource outputStream = CameraServer.getInstance().putVideo("Blur", 640, 480);
+			Mat source = new Mat();
+			Mat output = new Mat();
+			while (!Thread.interrupted()) {
+				cvSink.grabFrame(source);
+				Imgproc.cvtColor(source, output, Imgproc.COLOR_BGR2GRAY);
+				outputStream.putFrame(output);
+			}
+		}).start();
 	}
 	@Override
 	public void autonomousInit() {
