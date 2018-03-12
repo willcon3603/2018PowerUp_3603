@@ -32,23 +32,19 @@ public class MyEncoder implements PIDSource {
 
 	@Override
 	public void setPIDSourceType(PIDSourceType pidSource) {
-		// TODO Auto-generated method stub
-		
 	}
 
 	@Override
 	public PIDSourceType getPIDSourceType() {
-		// TODO Auto-generated method stub
 		return PIDSourceType.kDisplacement;
 	}
 	
-	public void zero() {
+	public void reset() {
 		offset = talon.getSelectedSensorPosition(0);
 	}
 
 	@Override
 	public double pidGet() {
-		// TODO Auto-generated method stub
 		return get();
 	}
 }

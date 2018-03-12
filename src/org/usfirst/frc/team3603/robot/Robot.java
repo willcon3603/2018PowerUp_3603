@@ -58,8 +58,8 @@ public class Robot extends IterativeRobot {
 	Joystick joy1 = new Joystick(0); //Large twist-axis joystick
 	Joystick joy2 = new Joystick(1); //Xbox controller
 	MyEncoder liftEnc = new MyEncoder(cubeLift, false, 1.0); //Encoder for the cube lift
+	MyEncoder driveEnc = new MyEncoder(leftBack, false, 1.0);
 	double mult = (4*Math.PI)/60; //Multiplier for the touchless encoder
-	TouchlessEncoder driveEnc = new TouchlessEncoder(2, mult); //Touchless encoder
 	Encoder armEnc = new Encoder(0, 1, false, EncodingType.k2X); //Arm angle encoder
 	WPI_TalonSRX pidStore = new WPI_TalonSRX(1); //Speed controller for setting up liftPID
 	WPI_TalonSRX armStore = new WPI_TalonSRX(2); //Speed controller for setting up armPID
@@ -84,7 +84,6 @@ public class Robot extends IterativeRobot {
 	final static double scaleNeutralHeight = 20200;//Double for scale encoder position //TODO change this number if the lift goes too height/low
 	final static double switchHeight = 3000;//Double for the switch encoder position TODO change this number if the lift is too high/low for the switch
 	
-	//TODO this is a to-do
 	@Override
 	public void robotInit() {
 		pidStore.disable();//Disable the PID store
@@ -95,7 +94,7 @@ public class Robot extends IterativeRobot {
 		
 		liftPID.setOutputRange(-0.7, 0.7); //Set the range of speeds for the lift PID
 		armPID.setOutputRange(-0.5, 0.5); //Set the range of speeds for the arm PID
-		liftEnc.zero(); //Zero out the lift encoder
+		liftEnc.reset(); //Zero out the lift encoder
 		new Thread(() -> {
 			UsbCamera camera = CameraServer.getInstance().startAutomaticCapture();
 			// camera.setResolution(320, 480);
@@ -152,14 +151,14 @@ public class Robot extends IterativeRobot {
 				autonMode = AutonType.leftScale;//Set the auton mode to the left scale
 				liftPID.setSetpoint(scaleNeutralHeight);//Set the lift PID to scale height
 			}
-			System.out.println("Pos 1");
+			System.out.println("Position 1");
 		} else if(position == 2) { //If we are in position 2...
 			if(sides.equals(LLL) || sides.equals(LRL)) {//If the switch is on the left...
 				autonMode = AutonType.leftMiddle;//Set the auton mode to left middle
 			} else if(sides.equals(RLR) || sides.equals(RRR)) {//If the switch is on the right side...
 				autonMode = AutonType.rightMiddle;//Set the auton mode to right middle
 			}
-			System.out.println("Pos 2");
+			System.out.println("Position 2");
 		} else if(position == 3) {//If we are in position 3...
 			if(sides.equals(LLL)) {//If neither the switch or scale is on our side...
 				autonMode = AutonType.straight;//Set the auton mode to straight
@@ -173,10 +172,10 @@ public class Robot extends IterativeRobot {
 				autonMode = AutonType.rightSwitch;//Do the switch
 				liftPID.setSetpoint(switchHeight);
 			}
-			System.out.println("Pos 3");
+			System.out.println("Position 3");
 		} else if(position == 4) {//If the auton switch is in position 4...
 			autonMode = AutonType.straight;//Override and drive straight
-			System.out.println("Pos 4");
+			System.out.println("Position 4");
 		}
 		if(autonMode == null) {
 			autonMode = AutonType.straight;
@@ -325,8 +324,6 @@ public class Robot extends IterativeRobot {
 		SmartDashboard.putBoolean("Slot 1", slot1.get());
 		SmartDashboard.putBoolean("Slot 2", slot2.get());
 		SmartDashboard.putBoolean("Slot 3", slot3.get());
-		
-		SmartDashboard.putNumber("Status", (driveEnc.read() ? 1 : 0));
 		
 		SmartDashboard.putString("results", matchInfo.getGameSpecificMessage());
 	}
