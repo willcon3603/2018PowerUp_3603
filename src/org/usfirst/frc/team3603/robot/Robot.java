@@ -83,6 +83,8 @@ public class Robot extends IterativeRobot {
 	double time; //Double to keep track of initial times
 	final static double scaleNeutralHeight = 20200;//Double for scale encoder position //TODO change this number if the lift goes too height/low
 	final static double switchHeight = 3000;//Double for the switch encoder position TODO change this number if the lift is too high/low for the switch
+	final static double lowGear = 1/9.07;
+	final static double highGear = 1/19.61;
 	
 	@Override
 	public void robotInit() {
@@ -190,6 +192,8 @@ public class Robot extends IterativeRobot {
 	@Override
 	public void autonomousPeriodic() {
 		release.set(0.5);//Release the arm by raising the servo
+		
+		driveEnc.setMultiplier(highGear);
 		
 		read();//Read from sensors and put the info on the smart dashboard
 		if(timer.get() <= 15) {
