@@ -21,6 +21,7 @@ import edu.wpi.first.wpilibj.IterativeRobot;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.PIDController;
 import edu.wpi.first.wpilibj.Servo;
+import edu.wpi.first.wpilibj.Solenoid;
 import edu.wpi.first.wpilibj.SpeedControllerGroup;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
@@ -52,14 +53,13 @@ public class Robot extends IterativeRobot {
 	Servo release = new Servo(0); //Servo for the arm release
 	
 	//Compressor compressor = new Compressor(); //Air compressor
-	//DoubleSolenoid omni = new DoubleSolenoid(0, 1); //Omni solenoid
-	//DoubleSolenoid shift = new DoubleSolenoid(2, 3);//Transmission solenoid
+	DoubleSolenoid shift = new DoubleSolenoid(2, 3);//Transmission solenoid
+	Solenoid grabber = new Solenoid(4);
 	
 	Joystick joy1 = new Joystick(0); //Large twist-axis joystick
 	Joystick joy2 = new Joystick(1); //Xbox controller
 	MyEncoder liftEnc = new MyEncoder(cubeLift, false, 1.0); //Encoder for the cube lift
-	MyEncoder driveEnc = new MyEncoder(leftBack, false, 1.0);
-	double mult = (4*Math.PI)/60; //Multiplier for the touchless encoder
+	MyEncoder driveEnc = new MyEncoder(leftBack, false, highGear);
 	Encoder armEnc = new Encoder(0, 1, false, EncodingType.k2X); //Arm angle encoder
 	WPI_TalonSRX pidStore = new WPI_TalonSRX(1); //Speed controller for setting up liftPID
 	WPI_TalonSRX armStore = new WPI_TalonSRX(2); //Speed controller for setting up armPID
@@ -153,14 +153,12 @@ public class Robot extends IterativeRobot {
 				autonMode = AutonType.leftScale;//Set the auton mode to the left scale
 				liftPID.setSetpoint(scaleNeutralHeight);//Set the lift PID to scale height
 			}
-			System.out.println("Position 1");
 		} else if(position == 2) { //If we are in position 2...
 			if(sides.equals(LLL) || sides.equals(LRL)) {//If the switch is on the left...
 				autonMode = AutonType.leftMiddle;//Set the auton mode to left middle
 			} else if(sides.equals(RLR) || sides.equals(RRR)) {//If the switch is on the right side...
 				autonMode = AutonType.rightMiddle;//Set the auton mode to right middle
 			}
-			System.out.println("Position 2");
 		} else if(position == 3) {//If we are in position 3...
 			if(sides.equals(LLL)) {//If neither the switch or scale is on our side...
 				autonMode = AutonType.straight;//Set the auton mode to straight
@@ -174,10 +172,8 @@ public class Robot extends IterativeRobot {
 				autonMode = AutonType.rightSwitch;//Do the switch
 				liftPID.setSetpoint(switchHeight);
 			}
-			System.out.println("Position 3");
 		} else if(position == 4) {//If the auton switch is in position 4...
 			autonMode = AutonType.straight;//Override and drive straight
-			System.out.println("Position 4");
 		}
 		if(autonMode == null) {
 			autonMode = AutonType.straight;
@@ -193,35 +189,34 @@ public class Robot extends IterativeRobot {
 	public void autonomousPeriodic() {
 		release.set(0.5);//Release the arm by raising the servo
 		
-		driveEnc.setMultiplier(highGear);
-		
 		read();//Read from sensors and put the info on the smart dashboard
-		if(timer.get() <= 15) {
-			switch(autonMode) {
-			case straight:
-				straight(); //Drive straight for auton
-				break;
-			case leftSwitch:
-				leftSwitch(); //Go to the left side of the switch 
-				break;
-			case rightSwitch:
-				rightSwitch(); //Go to the right side of the switch
-				break;
-			case leftScale:
-				leftScale(); //Go to the left side of the scale
-				break;
-			case rightScale:
-				rightScale(); //Go to the right side of the scale
-				break;
-			case rightMiddle:
-				rightMiddle(); //Go to the front right side of the switch
-				break;
-			case leftMiddle:
-				leftMiddle(); //Go to the front left side of the switch
-				break;
-			}
+		switch(autonMode) {
+		case straight:
+			straight(); //Drive straight for auton
+			break;
+		case leftSwitch:
+			leftSwitch(); //Go to the left side of the switch 
+			break;
+		case rightSwitch:
+			rightSwitch(); //Go to the right side of the switch
+			break;
+		case leftScale:
+			leftScale(); //Go to the left side of the scale
+			break;
+		case rightScale:
+			rightScale(); //Go to the right side of the scale
+			break;
+		case rightMiddle:
+			rightMiddle(); //Go to the front right side of the switch
+			break;
+		case leftMiddle:
+			leftMiddle(); //Go to the front left side of the switch
+			break;
+		}
+		if(shift.get() == out) {
+			driveEnc.setMultiplier(highGear);
 		} else {
-			mainDrive.arcadeDrive(0, 0);
+			driveEnc.setMultiplier(lowGear);
 		}
 	}
 	
@@ -249,9 +244,9 @@ public class Robot extends IterativeRobot {
 		}
 		
 		if(joy1.getRawButton(3)) { //Press and hold button 3 for transmission
-			//shift.set(out);//Set the transmission piston to out (high gear)
+			shift.set(out);//Set the transmission piston to out (high gear)
 		} else {
-			//shift.set(in); //Set the transmission piston to in (low gear)
+			shift.set(in); //Set the transmission piston to in (low gear)
 		}
 		
 		if(joy1.getRawButton(12)) {
@@ -397,7 +392,7 @@ public class Robot extends IterativeRobot {
 	
 	void rightMiddle() {//Method to do the right side of the switch when in position 2
 		strPID.enable();//Enable the drive straight PID
-		//shift.set(out);//Go into high gear
+		shift.set(out);//Go into high gear
 		switch(step) {
 		case 1:
 			liftPID.setSetpoint(12000);//set the lift PID setpoint to 10000 TODO change this if it is too high/low
@@ -431,18 +426,9 @@ public class Robot extends IterativeRobot {
 		}
 	}
 	
-	void testlol() {
-		if(driveEnc.get() <= 252) {
-			mainDrive.arcadeDrive(-0.75, -strPID.get());
-		} else {
-			System.out.println(timer.get());
-			mainDrive.arcadeDrive(0, 0);
-		}
-	}
-	
 	void rightScale() {//Auton for the right side of the scale
 		strPID.enable();//Enable the drive straight PID
-		//shift.set(out);//Go into high gear
+		shift.set(out);//Go into high gear
 		switch(step) {
 		case 1:
 			liftPID.setSetpoint(15000);//Set the lift setpoint to 15000
@@ -484,7 +470,7 @@ public class Robot extends IterativeRobot {
 	
 	void leftScale() {//Auton for the left side of the scale
 		strPID.enable();//Enable the drive straight PID
-		//shift.set(out);//Go into the high
+		shift.set(out);//Go into the high
 		switch(step) {
 		case 1:
 			liftPID.setSetpoint(15000);//Set the lift setpoint to a little over half way
@@ -526,7 +512,7 @@ public class Robot extends IterativeRobot {
 	
 	void leftSwitch() {//auton for the left side of the switch
 		strPID.enable();//enable the drive straight auton
-		//shift.set(out);//go in to high gear
+		shift.set(out);//go in to high gear
 		switch(step) {
 		case 1:
 			liftPID.setSetpoint(12000);//St the lift to 10000
@@ -575,7 +561,7 @@ public class Robot extends IterativeRobot {
 	
 	void rightSwitch() {//auton for the right side of the switch
 		strPID.enable();//enable the straight PID
-		//shift.set(out);//go into high gear
+		shift.set(out);//go into high gear
 		switch(step) {
 		case 1://step 1
 			liftPID.setSetpoint(12000);//set the lift setpoint TODO change if too high/low
