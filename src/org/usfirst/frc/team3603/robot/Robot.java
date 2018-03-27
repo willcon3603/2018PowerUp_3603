@@ -8,10 +8,10 @@
 package org.usfirst.frc.team3603.robot;
 
 import edu.wpi.first.wpilibj.IterativeRobot;
-import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import edu.wpi.first.wpilibj.Joystick;
 
 public class Robot extends IterativeRobot {
+	Joystick joy1 = new Joystick(0);
 	@Override
 	public void robotInit() {
 	}
